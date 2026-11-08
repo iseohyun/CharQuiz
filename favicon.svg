@@ -1,0 +1,10 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="charQuizGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ec4899" />
+      <stop offset="100%" stop-color="#f43f5e" />
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="136" ry="136" fill="url(#charQuizGrad)" />
+  <path d="M 340.7 256.9 L 340.7 385.5 L 306.9 385.5 L 306.9 126.5 L 340.7 126.5 L 340.7 228.5 L 380.9 228.5 L 380.9 256.9 Z M 156.4 328.8 L 131.1 305.2 C 189 273.4, 224 230.7, 236.1 177.1 L 146 177.1 L 146 148.8 L 274.4 148.8 C 267.3 224.7, 228 284.7, 156.4 328.8 Z" fill="#ffffff" stroke="#ffffff" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" paint-order="stroke fill" />
+</svg>

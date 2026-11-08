@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CharQuiz 관리자 대시보드</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="alternate icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-color: #0d0e12;
+      --card-bg: #161822;
+      --primary: #228be6;
+      --primary-hover: #1c7ed6;
+      --text: #f8f9fa;
+      --text-muted: #868e96;
+      --border: #2a2e3d;
+      --success: #2b8a3e;
+      --danger: #e63946;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text);
+      font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background-color: var(--card-bg);
+      border-bottom: 1px solid var(--border);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--primary);
+    }
+
+    .user-profile {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    main {
+      flex: 1;
+      max-width: 1000px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 30px 20px;
+      box-sizing: border-box;
+    }
+
+    .auth-container {
+      max-width: 400px;
+      margin: 80px auto;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 0.4s ease;
+    }
+
+    .auth-container h2 {
+      margin-top: 0;
+      font-size: 20px;
+      margin-bottom: 20px;
+    }
+
+    .suggestions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .suggestion-card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+      animation: slideIn 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .user-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .user-name {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .user-email {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .time-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .content-box {
+      background-color: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+
+    .suggestion-text {
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .empty-suggestion {
+      color: var(--text-muted);
+      font-style: italic;
+      font-size: 13px;
+    }
+
+    .reply-history {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .reply-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .reply-textarea {
+      width: 100%;
+      height: 80px;
+      background-color: rgba(0, 0, 0, 0.2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 10px;
+      box-sizing: border-box;
+      font-family: inherit;
+      font-size: 13px;
+      resize: vertical;
+    }
+
+    .reply-textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    .status-badge {
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-pending {
+      background-color: rgba(230, 57, 70, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(230, 57, 70, 0.3);
+    }
+
+    .status-replied {
+      background-color: rgba(43, 138, 62, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(43, 138, 62, 0.3);
+    }
+
+    .error-msg {
+      background-color: rgba(230, 57, 70, 0.1);
+      border: 1px solid var(--danger);
+      color: #ff8787;
+      padding: 15px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(15px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>CharQuiz 관리자 대시보드</h1>
+    <div class="user-profile" id="user-profile-section" style="display: none;">
+      <span id="admin-name-display" style="font-size: 14px; font-weight: 600;"></span>
+      <button class="btn btn-outline" id="btn-logout">로그아웃</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 권한 오류 경고 -->
+    <div id="error-alert" class="error-msg" style="display: none;">
+      <span>🔒 <b>접근 차단:</b> 관리자 권한이 발견되지 않았습니다. 파이어베이스 Console에서 '/admins/{uid}' 문서를 등록해 주십시오.</span>
+    </div>
+
+    <!-- 로그인 전 화면 -->
+    <div id="auth-view" class="auth-container">
+      <h2>관리자 로그인</h2>
+      <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 25px;">
+        안전한 데이터 처리를 위해 구글 계정으로 로그인합니다.<br>
+        인증 후 관리자로 승인된 계정만 조회가 가능합니다.
+      </p>
+      <button class="btn btn-primary" id="btn-login" style="width: 100%; padding: 12px;">Google 계정으로 관리자 로그인</button>
+    </div>
+
+    <!-- 건의사항 리스트 대시보드 화면 -->
+    <div id="dashboard-view" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+        <h2 style="margin: 0; font-size: 20px;">건의사항 및 피드백 현황</h2>
+        <span id="total-count-badge" style="background-color: var(--border); padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">건의 총 0건</span>
+      </div>
+
+      <div class="suggestions-list" id="suggestions-container">
+        <!-- 동적으로 바인딩 -->
+      </div>
+    </div>
+  </main>
+
+  <script type="module">
+    console.log("[Admin] Script initialized.");
+    import { auth, db } from './components/firebase-config.js';
+    import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-auth.js";
+    import { collection, doc, getDoc, getDocs, setDoc, updateDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
+
+    const authView = document.getElementById('auth-view');
+    const dashboardView = document.getElementById('dashboard-view');
+    const userProfileSection = document.getElementById('user-profile-section');
+    const adminNameDisplay = document.getElementById('admin-name-display');
+    const errorAlert = document.getElementById('error-alert');
+    const suggestionsContainer = document.getElementById('suggestions-container');
+    const totalCountBadge = document.getElementById('total-count-badge');
+
+    // 로그인 리스너 (로컬 환경 상태 공유를 위해 팝업 로그인 사용)
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      console.log("[Admin] Login button clicked (using signInWithPopup).");
+      errorAlert.style.display = 'none';
+      try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        console.log("[Admin] signInWithPopup completed. User UID:", result.user.uid);
+      } catch (err) {
+        console.error("[Admin] 로그인 중 에러 발생:", err);
+        alert("인증에 실패했습니다. 상세 정보는 콘솔을 확인하십시오.");
+      }
+    });
+
+    // 로그아웃 리스너
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      if (confirm("로그아웃 하시겠습니까?")) {
+        await signOut(auth);
+      }
+    });
+
+    // 파이어베이스 인증 리스너
+    onAuthStateChanged(auth, async (user) => {
+      console.log("[Admin] onAuthStateChanged triggered. User UID:", user ? user.uid : "null");
+      if (user) {
+        // 1. 관리자 권한 확인
+        try {
+          const adminDocRef = doc(db, 'admins', user.uid);
+          console.log("[Admin] Querying Firestore path:", adminDocRef.path);
+          const adminSnap = await getDoc(adminDocRef);
+          console.log("[Admin] Document exist?", adminSnap.exists());
+
+          if (adminSnap.exists()) {
+            // 관리자 확인 완료!
+            console.log("[Admin] Access granted for UID:", user.uid);
+            errorAlert.style.display = 'none';
+            authView.style.display = 'none';
+            userProfileSection.style.display = 'flex';
+            adminNameDisplay.innerText = user.displayName || user.email || "관리자";
+            dashboardView.style.display = 'block';
+
+            // 데이터 로드
+            loadSuggestions();
+          } else {
+            // 일반 사용자 권한 차단
+            handleAccessDenied(user.uid);
+          }
+        } catch (error) {
+          console.error("권한 체크 오류:", error);
+          errorAlert.innerHTML = `<span>🔒 <b>조회 오류:</b> 관리자 권한 조회 중 오류가 발생했습니다. 파이어베이스 콘솔에서 Firestore Database 규칙(Rules)이 정상적으로 게시되었는지 확인하십시오.<br><b>상세 에러:</b> ${error.message}</span>`;
+          errorAlert.style.display = 'flex';
+          signOut(auth);
+        }
+      } else {
+        // 로그아웃 상태
+        authView.style.display = 'block';
+        dashboardView.style.display = 'none';
+        userProfileSection.style.display = 'none';
+      }
+    });
+
+    function handleAccessDenied(uid) {
+      errorAlert.innerHTML = `<span>🔒 <b>접근 차단:</b> 관리자 권한이 발견되지 않았습니다. 파이어베이스 Console의 <code>admins</code> 컬렉션에 문서 ID로 <code>${uid}</code>를 추가해 주십시오.<br><b>현재 로그인한 계정 UID:</b> <code>${uid}</code></span>`;
+      errorAlert.style.display = 'flex';
+      authView.style.display = 'block';
+      dashboardView.style.display = 'none';
+      userProfileSection.style.display = 'none';
+      signOut(auth);
+    }
+
+    // 건의사항 목록 불러오기
+    async function loadSuggestions() {
+      suggestionsContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;">데이터를 조회하는 중입니다...</div>';
+      try {
+        const q = query(collection(db, 'suggestions'), orderBy('updatedAt', 'desc'));
+        const snapshot = await getDocs(q);
+        
+        let html = '';
+        let count = 0;
+
+        if (snapshot.empty) {
+          suggestionsContainer.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px; background-color: var(--card-bg); border-radius: 8px;">등록된 건의사항이 없습니다.</div>';
+          totalCountBadge.innerText = '건의 총 0건';
+          return;
+        }
+
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          const uid = docSnap.id;
+          
+          const hasPending = data.suggestion && data.suggestion.trim() !== "";
+          const statusClass = hasPending ? 'status-pending' : 'status-replied';
+          const statusText = hasPending ? '답변 대기' : '답변 완료';
+
+          // 날짜 포맷
+          const date = new Date(data.updatedAt);
+          const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+
+          count++;
+
+          const safeUid = escapeHtml(uid);
+          const safeName = escapeHtml(data.name || '게스트');
+          const safeEmail = escapeHtml(data.email || '비로그인 사용자 (GUEST_ID: ' + uid + ')');
+
+          html += `
+            <div class="suggestion-card" id="card-${safeUid}">
+              <div class="card-header">
+                <div class="user-meta">
+                  <span class="user-name">${safeName}</span>
+                  <span class="user-email">${safeEmail}</span>
+                </div>
+                <div class="time-meta">
+                  <span class="status-badge ${statusClass}">${statusText}</span>
+                  <div style="margin-top: 5px; font-size: 11px;">${dateStr}</div>
+                </div>
+              </div>
+
+              <div class="content-box">
+                <div class="label">새 건의사항</div>
+                <div class="suggestion-text">${hasPending ? escapeHtml(data.suggestion) : '<span class="empty-suggestion">등록된 대기 건의사항이 없습니다.</span>'}</div>
+              </div>
+
+              <div class="content-box">
+                <div class="label">답변 역사 (Reply History)</div>
+                <div class="reply-history">${data.reply ? escapeHtml(data.reply) : '<span class="empty-suggestion">과거 답변 기록이 없습니다.</span>'}</div>
+              </div>
+
+              <div class="reply-form">
+                <label style="font-size: 12px; font-weight: 600;">새 답변 작성</label>
+                <textarea class="reply-textarea" id="textarea-${safeUid}" placeholder="건의에 대한 답변을 작성하십시오. 저장 시 답변 역사로 병합되고 사용자 건의창은 비워집니다." ${hasPending ? '' : 'disabled'}></textarea>
+                <div style="display: flex; justify-content: flex-end; margin-top: 5px;">
+                  <button class="btn btn-primary btn-save-reply" data-uid="${safeUid}" ${hasPending ? '' : 'disabled'}>답변 저장 및 이관</button>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+
+        suggestionsContainer.innerHTML = html;
+        totalCountBadge.innerText = `건의 총 ${count}건`;
+
+        // 답변 저장 버튼 이벤트 바인딩
+        const saveBtns = suggestionsContainer.querySelectorAll('.btn-save-reply');
+        saveBtns.forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            const uid = e.target.dataset.uid;
+            const replyTextarea = document.getElementById(`textarea-${uid}`);
+            const replyText = replyTextarea.value.trim();
+
+            if (!replyText) {
+              alert("답변 내용을 입력하십시오.");
+              return;
+            }
+
+            if (!confirm("답변을 저장하시겠습니까? 저장 시 기존 건의사항은 답변 이력으로 이관되고 건의사항 입력창은 비워집니다.")) return;
+
+            e.target.disabled = true;
+            try {
+              // 1. 기존 데이터 다시 가져오기
+              const docRef = doc(db, 'suggestions', uid);
+              const snap = await getDoc(docRef);
+              if (snap.exists()) {
+                const currentData = snap.data();
+                const currentSuggestion = currentData.suggestion || "";
+                const existingReply = currentData.reply || "";
+
+                // 역사 병합
+                const newReply = (existingReply ? (existingReply + "\n\n") : "") + `[문] ${currentSuggestion}\n[답] ${replyText}`;
+
+                // Firestore 업데이트
+                await updateDoc(docRef, {
+                  suggestion: "", // 건의 비우기
+                  reply: newReply,
+                  updatedAt: Date.now()
+                });
+
+                alert("답변이 저장되었습니다!");
+                loadSuggestions(); // 대시보드 리로드
+              }
+            } catch (err) {
+              console.error("답변 저장 실패:", err);
+              alert("저장에 실패했습니다: " + err.message);
+              e.target.disabled = false;
+            }
+          });
+        });
+
+      } catch (error) {
+        console.error("건의사항 목록 수급 실패:", error);
+        suggestionsContainer.innerHTML = `<div class="error-msg">⚠️ 데이터 수급 실패: ${error.message}</div>`;
+      }
+    }
+
+    function escapeHtml(string) {
+      return String(string).replace(/[&<>"']/g, function (s) {
+        return {
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }[s];
+      });
+    }
+  </script>
+</body>
+</html>

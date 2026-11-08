@@ -1,0 +1,80 @@
+<style>
+  ol,
+  ul {
+    padding: 0 1em;
+  }
+</style>
+
+<h1>CharQuiz</h1>
+<ol>
+  <li>이 어플리케이션은 <b>음성을 듣고</b> 정답을 <b>빠르게</b> 맞추는 프로그램입니다.😁</li>
+  <li>최초 학습단어는 4개, 학습 단어들의 암기력이 일정 수준에 오르면 새 단어를 자동으로 추가합니다(진도표에서 강제로 해금/해금취소 가능).</li>
+  <li>
+    메뉴 구성:
+    <ul>
+      <li><b>[사용자 이름] 또는 "게스트"</b>를 클릭하면 로그인 할 수 있습니다. <b>로그인 하면 학습 진행상황을 기억</b> 할 수 있습니다.👍</li>
+      <li><span style="display: inline;" class="domain-btn">あ</span>를 클릭하면 학습 도메인을 바꿀 수 있습니다. 각 도메인은 <b>'히라가나' → '가타카나'
+          → '한글' → '알파벳(대문자)' → '알파벳(소문자)'</b>순으로 순환 구성되어 있습니다.</li>
+      <li><span class="material-symbols-outlined" onclick="playSoundTest()">sound_detection_loud_sound</span>에서
+        <b>볼륨테스트</b>를 수행합니다.
+      </li>
+      <li><span class="material-symbols-outlined" onclick="popupProgress()">menu_book</span>에서 <b>현재 진도</b>를 확인합니다.
+        <ul>
+          <li>각 글자를 클릭하면 <b>해금/해금취소</b>를 할 수 있습니다.</li>
+          <li>'전체해금'/'전체해금취소'를 지원합니다.</li>
+          <li>숙련도 Lv.는 총 8단계가 있습니다.</li>
+        </ul>
+      </li>
+      <li><span class="material-symbols-outlined" onclick="popupSetting()">settings</span>에서 <b>학습설정</b>을 변경 할 수 있습니다.
+      </li>
+      <li><span class="material-symbols-outlined" onclick="popupLeaderboard()">leaderboard</span>에서 <b>"기록모드"의 순위를
+          확인</b> 할 수 있습니다
+        <ol>
+          <li>정확도(최우선)</li>
+          <li>완료 시간 빠름</li>
+          <li>과거 기록이 우선</li>
+          <li>게스트도 참여 가능합니다.</li>
+        </ol>
+      </li>
+    </ul>
+  </li>
+  <li>복습 설계(이론적 배경):
+    <ol>
+      <li>인지심리학적 기초: <b>분산 연습과 간격 효과</b>
+        본 학습 시스템은 인지심리학의 분산 연습(Distributed Practice)과 <b>간격 효과(Spacing Effect)</b> 이론에 기반합니다. 대량의 정보를 한 번에 몰아서 학습하는 집중
+        연습(Massed Practice)과 달리, 시간적 간격을 두고 학습을 분산했을 때 장기 기억 전환율이 극대화됩니다. 이는 정보를 머릿속에서 완전히 유실하기 직전, 희미해진 기억을 붙잡아 꺼내려는
+        '인출 노력(Retrieval Effort)'이 수반될 때 뇌세포의 시냅스 연결이 가장 강하게 결합한다는 현대 인지과학의 정설을 따릅니다.</li>
+      <li>망각 곡선의 비선형성과 최초 <b>10분 복습의 가치</b>
+        헤르만 에빙하우스(Hermann Ebbinghaus, 1885)와 후버트 횝케(Hubert Höpke)의 망각 곡선 연구에 따르면, 인간의 망각은 학습 직후 최초 10분~20분 이내에 기하급수적으로
+        폭발하며 가장 가파르게 일어납니다. 본 설계에서 <b>최초 복습 주기를 '10분 뒤'로 설정한 이유</b>는 이 급격한 초기 망각 구간을 방어하기 위함입니다. 뇌의 단기 기억 창고(해마)에서 정보가
+        사라지기 직전 동일한 자극을 다시 주입함으로써, 세포 간의 화학적 결합을 단단하게 묶는 <b>장기강화(LTP, Long-Term Potentiation)</b> 메커니즘을 유도하고 효율적인
+        장기기억(Long-term Memory) 이관의 발판을 마련합니다.</li>
+      <li>간격 반복 시스템의 <b>공학적 진화와 유효성</b>
+        1980년대 피오트르 워즈니아크(Piotr Woźniak)는 자신의 생체 데이터를 기반으로 복습 간격을 정량화한 SM-2(SuperMemo-2) 알고리즘을 개발했으며, 이는 현대의 글로벌 암기
+        프로그램인 안키(Anki)의 모태가 되었습니다.</li>
+    </ol>
+  </li>
+  <li>숙련도 설계(이론적 배경):
+    <ol>
+      <li>인지심리학 및 신경과학 연구(예: _Mental Chronometry_ 및 정보처리이론)에 따르면, 자극 제시 후 응답까지 걸리는 시간(RT, Reaction Time)은 <b>뇌의 신경 전달 속도
+          및 장기기억 인출의 자동화(Automatization) 수준</b>을 직접적으로 반영합니다. 개념을 완벽하게 외워 '마스터'한 상태에 도달하면, 뇌는 대뇌피질의 복잡한 추론 과정을 거치지 않고
+        기저핵(Basal Ganglia) 수준에서 반사적으로 정답을 도출합니다. 따라서 반응 속도가 빠를수록 해당 지식이 단기 기억 장고를 거치지 않는 '견고한 장기 기억'으로 정답 안착이 완료되었음을
+        증명합니다.
+      </li>
+    </ol>
+  </li>
+</ol>
+
+<hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;" />
+<h3 style="font-size: 16px; margin-bottom: 15px;">💬 건의사항 및 문의</h3>
+<div class="suggestion-section" style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px;">
+  <div>
+    <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #495057;">건의 사항 입력</label>
+    <textarea id="user-suggestion-textarea" placeholder="어플리케이션에 대한 건의사항이나 피드백을 적어주세요." style="width: 100%; height: 100px; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-family: inherit; font-size: 13px; resize: vertical; box-sizing: border-box;"></textarea>
+  </div>
+  <button id="submit-suggestion-btn" style="padding: 10px; background-color: #228be6; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px; transition: background-color 0.2s ease;">보내기</button>
+  <div style="margin-top: 10px;">
+    <label style="display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #495057;">개발자 답변 역사</label>
+    <textarea id="dev-reply-textarea" disabled placeholder="보내주신 건의사항에 관리자가 답변을 달면 이력이 여기에 표시됩니다." style="width: 100%; height: 150px; padding: 10px; border-radius: 6px; border: 1px solid #ccc; background-color: #f1f3f5; color: #495057; font-family: inherit; font-size: 13px; resize: none; box-sizing: border-box;"></textarea>
+  </div>
+</div>

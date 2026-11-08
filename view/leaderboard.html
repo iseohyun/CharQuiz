@@ -1,0 +1,68 @@
+<style>
+  .leaderboard-table th,
+  .leaderboard-table td {
+    word-break: keep-all;
+    white-space: pre-wrap;
+  }
+  .leaderboard-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 15px;
+    border-bottom: 2px solid #eaeaea;
+    padding-bottom: 10px;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: #f1f3f5;
+    color: #495057;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    outline: none;
+  }
+  .tab-btn:hover {
+    background-color: #e9ecef;
+  }
+  .tab-btn.active {
+    background-color: #228be6;
+    color: white;
+  }
+</style>
+<div class="leaderboard-container">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+    <h2 style="margin:0; font-size:18px;">명예의 전당</h2>
+    <select id="leaderboard-domain-select" onchange="changeLeaderboardDomain(this.value)"
+      style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 13px; cursor: pointer;">
+      <option value="all" selected>전체 도메인</option>
+      <option value="hira">히라가나 (hira)</option>
+      <option value="kata">가타카나 (kata)</option>
+      <option value="hangle">한글 (hangle)</option>
+      <option value="english(A)">영문 대문자 (A)</option>
+      <option value="english(a)">영문 소문자 (a)</option>
+    </select>
+  </div>
+
+  <div class="leaderboard-tabs">
+    <button id="tab-speedrun" class="tab-btn active" onclick="switchLeaderboardMode('speedrun')">기록 모드</button>
+    <button id="tab-study" class="tab-btn" onclick="switchLeaderboardMode('study')">학습 모드</button>
+  </div>
+
+  <table class="leaderboard-table">
+    <thead id="leaderboard-header">
+      <tr>
+        <th>순위</th>
+        <th>아이디</th>
+        <th>도메인 (문항수)</th>
+        <th>소요시간</th>
+        <th>정답률</th>
+        <th>완료 시각</th>
+      </tr>
+    </thead>
+    <tbody id="leaderboard-list">
+    </tbody>
+  </table>
+</div>

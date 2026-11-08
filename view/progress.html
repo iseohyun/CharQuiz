@@ -1,0 +1,63 @@
+<style>
+  /* 분석 모드용 스타일 */
+  .analysis-active .stat-normal {
+    display: none;
+  }
+  .analysis-active .stat-analysis {
+    display: block !important;
+  }
+  .chart-tag {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    font-size: 7px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 1px;
+    white-space: nowrap;
+    z-index: 10;
+    color: #e62224;
+    pointer-events: none;
+    transform: rotate(-90deg);
+    transform-origin: 0 100%;
+  }
+</style>
+<div style="margin-bottom:12px; padding:12px; background:#f9f9f9; border-radius:6px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:6px;">
+    <span style="font-weight:bold; font-size:13px;">최근 일주일 학습량</span>
+    <span style="font-size:11px; color:#666;">총 학습: <span id="total-study-time"
+        style="font-weight:bold; color:#4a90e2;">0분</span></span>
+  </div>
+  <div id="study-chart-container" style="display:flex; align-items:flex-end; gap:6px; height:60px; padding-top:5px;">
+  </div>
+</div>
+
+<div style="margin-bottom:12px; padding:12px; background:#f9f9f9; border-radius:6px;">
+  <span style="font-weight:bold; font-size:13px; display:block; margin-bottom:6px;">응답 속도 분포 (0.2초 간격)</span>
+  <div id="response-time-chart"
+    style="display:flex; align-items:flex-end; gap:1px; height:50px; background:#eee; border-radius:4px; padding:0 2px; position:relative; overflow:hidden;">
+  </div>
+  <div style="display:flex; justify-content:space-between; font-size:9px; color:#aaa; margin-top:2px;">
+    <span>0s</span><span>1s</span><span>2s</span><span>3s</span><span>4s</span><span>5s+</span>
+  </div>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:5px;">
+  <div style="font-size:12px; font-weight:bold; color:#333;">진행률: <span id="settings-active-count">0 / 0 (0.0%)</span>
+  </div>
+  <div style="display:flex; gap:4px;">
+    <button id="btn-analysis" onclick="toggleAnalysisMode()"
+      style="padding:4px 10px; background:#673ab7; color:white; border:none; border-radius:3px; font-size:11px; cursor:pointer;word-break:keep-all;">응답속도</button>
+    <button onclick="unlockAllCharacters()"
+      style="padding:4px 10px; background:#4CAF50; color:white; border:none; border-radius:3px; font-size:11px; cursor:pointer;word-break:keep-all;">모두
+      해금</button>
+    <button onclick="resetAllProgressData()"
+      style="padding:4px 10px; background:#f44336; color:white; border:none; border-radius:3px; font-size:11px; cursor:pointer;word-break:keep-all;">모두
+      초기화</button>
+  </div>
+</div>
+
+<div style="width:100%; max-height:calc(100vh - 230px); overflow-y:auto; border-top:1px solid #ddd;    overflow:initial;">
+  <table id="progress-table"
+    style="width:100%; border-collapse:collapse; font-size:11px; text-align:center; background:white; table-layout:fixed;">
+  </table>
+</div>

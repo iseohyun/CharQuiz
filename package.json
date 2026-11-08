@@ -1,0 +1,6 @@
+{
+  "name": "CharQuiz",
+  "devDependencies": {
+    "playwright": "^1.62.1"
+  }
+}

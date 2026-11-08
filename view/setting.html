@@ -1,0 +1,82 @@
+<div style="margin-bottom:20px; padding:15px; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; font-size:14px; color:#333;">
+  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
+    <span style="font-weight:bold; font-size:16px;">{{userName}}</span>
+    <span style="font-size:13px; color:#555;">
+      (<select id="user-age" style="width:65px; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px; cursor:pointer; font-size:12px;">
+        <option value="미상">연령대</option>
+        <option value="10대">10대</option>
+        <option value="20대">20대</option>
+        <option value="30대">30대</option>
+        <option value="40대">40대</option>
+        <option value="50대">50대</option>
+        <option value="60대">60대</option>
+        <option value="70대">70대</option>
+      </select>,
+      <select id="user-gender" style="width:50px; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px; cursor:pointer; font-size:12px;">
+        <option value="미상">성별</option>
+        <option value="남">남</option>
+        <option value="여">여</option>
+      </select>)
+    </span>
+    <span style="color:#666; font-size:13px; margin-left:5px;">{{userEmail}}</span>
+  </div>
+</div>
+
+<div style="margin-bottom:15px">
+  <label style="display:block; margin-bottom:10px; font-weight:bold;">목표 학습 시간:</label>
+  <div style="display:flex; align-items:center; gap:15px;">
+    <input type="range" id="time-slider" min="0" max="5" step="1" value="{{timeIdx}}" style="flex:1; cursor:pointer;"
+      oninput="updateTimeFromSlider(this.value)">
+    <span id="time-val-display" style="font-weight:bold; min-width:30px; text-align:right;">{{learningTime}}</span>초
+  </div>
+</div>
+
+<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
+  <span style="font-weight: bold;">단어장 크기</span>
+  <input type="number" id="pool-size" min="1" max="100" value="{{MAX_POOL_SIZE}}"
+    style="width: 60px; text-align: right;">
+</div>
+
+<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
+  <span style="font-weight: bold;">자동진도</span>
+  <input type="checkbox" id="auto-progress" {{#if autoProgress}}checked{{/if}}>
+</div>
+
+<div
+  style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px; gap:15px;">
+  <span style="font-weight: bold; min-width:65px;">음성속도</span>
+  <input type="range" id="speech-slider" min="0" max="5" step="1" value="{{speechIdx}}" style="flex:1; cursor:pointer;"
+    oninput="updateSpeechFromSlider(this.value)">
+  <span id="speech-val-display" style="font-weight:bold; min-width:30px; text-align:right;">{{speechRate}}</span>
+</div>
+
+<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
+  <span style="font-weight: bold;">음성 성우 엔진</span>
+  <select id="voice-source" onchange="changeVoiceSource(this.value)" style="width: 210px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 6px; cursor: pointer; font-size: 12px; background: #ffffff;">
+    <option value="google_mp3">🎵 구글 여성 성우 (Female MP3)</option>
+    <option value="google_male_mp3">👨‍💼 구글 남성 성우 (Male MP3)</option>
+    <option value="haruka_mp3">🌸 Windows Haruka (Haruka MP3)</option>
+    <option value="browser_tts">🎙️ 브라우저 실시간 TTS</option>
+  </select>
+</div>
+<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
+  <span style="font-weight: bold;">오답 표시</span>
+  <div style="display:flex; gap:8px;">
+    <button id="btn-error-show" style="padding:4px 10px; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer;">표시</button>
+    <button id="btn-error-audio" style="padding:4px 10px; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer;">+ 음성</button>
+  </div>
+</div>
+
+<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
+  <span style="font-weight: bold;">관전 모드 출력 주기</span>
+  <select id="spectator-interval" style="width: 70px; text-align: center; border: 1px solid #ccc; border-radius: 3px; padding: 2px; cursor: pointer; font-size: 12px;">
+    <option value="0.8">0.8초</option>
+    <option value="1">1초</option>
+    <option value="1.5">1.5초</option>
+    <option value="2">2초</option>
+    <option value="2.5">2.5초</option>
+    <option value="3">3초</option>
+  </select>
+</div>
+
+{{keybindingsConfig}}

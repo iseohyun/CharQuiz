@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Study Mode Example</title>
+
+  <link rel="stylesheet" href="../common.css">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+</head>
+
+<body>
+  <div id="app-container">
+    <div class="user-profile-box">
+      <div class="user-info-left">
+        <span class="user-name-trigger">
+          <span class="material-symbols-outlined">account_box</span>
+          <span id="profile-name">게스트</span>님
+        </span>
+      </div>
+      <div class="user-info-right">
+        <span class="material-symbols-outlined">
+          question_mark
+        </span>
+        <span class="material-symbols-outlined">
+          leaderboard
+        </span>
+        <span class="material-symbols-outlined">
+          settings
+        </span>
+        <span class="material-symbols-outlined">
+          menu_book
+        </span>
+        <span class="material-symbols-outlined">
+          sound_detection_loud_sound
+        </span>
+      </div>
+    </div>
+    <div id="main-box">
+      <div class="timer-progress-container">
+        <div id="timer-progress-bar"></div>
+      </div>
+      <div class="quiz-panel">
+        <div class="quiz-panel-main">
+          <div class="mode-info">학습 모드</div>
+          <div class="quiz-box">
+            <div class="quiz-main">
+              <span class="material-symbols-outlined">
+                sound_detection_loud_sound
+              </span>
+            </div>
+            <span class="quiz-sub">다시 듣기</span>
+          </div>
+        </div>
+        <div class="quiz-panel-sub">
+          <div id="quiz-history1">정답</div>
+          <div id="quiz-history2">정답</div>
+          <div id="quiz-history3">오답</div>
+          <div id="quiz-history4">오답</div>
+          <div id="quiz-history5">정답</div>
+        </div>
+      </div>
+      <div class="options-panel">
+        <button class="option-btn">a</button>
+        <button class="option-btn">i</button>
+        <button class="option-btn">u</button>
+        <button class="option-btn">e</button>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

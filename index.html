@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>CharQuiz</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="alternate icon" type="image/png" href="./icon.png">
+  <link rel="apple-touch-icon" href="./icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&family=Noto+Sans+KR:wght@400;500;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+  <script>
+    window.APP_VERSION = "v1.0.5";
+    window.CACHE_BUST = "20261109v1";
+
+    const cssLink = document.createElement("link");
+    cssLink.rel = "stylesheet";
+    cssLink.href = `common.css?v=${window.CACHE_BUST}`;
+    document.head.appendChild(cssLink);
+  </script>
+</head>
+
+<body>
+  <div id="app-container">
+    <!-- 사용자 원본 모바일 탑메뉴 UI 구조 -->
+    <div class="user-profile-box">
+      <div class="user-info-left">
+        <div class="menu-item profile-trigger-item" onclick="popupLogin()">
+          <span class="user-name-trigger">
+            <span class="material-symbols-outlined">account_box</span>
+            <span id="profile-name">게스트</span>님
+          </span>
+          <span class="keybind-badge" id="kb-badge-popupLogin">ESC</span>
+        </div>
+      </div>
+
+      <!-- 🎮 퀴즈/게임 모드 실행 시 상단 헤더 빈 영역에 노출되는 모드 배지 및 컨트롤 -->
+      <div class="header-quiz-control" id="header-quiz-control" style="display: none;">
+        <div class="mode-badge study" id="header-mode-badge">
+          <span class="material-symbols-outlined mode-badge-icon" style="font-size: 1.1rem;">school</span>
+          <span id="current-mode-title">학습 모드</span>
+        </div>
+        <button class="pause-btn" id="header-pause-btn" onclick="pauseGameTrigger()" aria-label="일시정지" title="일시정지">
+          <span class="material-symbols-outlined" style="font-size: 1.3rem;">pause</span>
+        </button>
+        <button class="stop-btn" id="header-stop-btn" onclick="exitQuizTrigger()" aria-label="중단" title="중단">
+          <span class="material-symbols-outlined" style="font-size: 1.3rem;">close</span>
+        </button>
+      </div>
+
+      <div class="user-info-right">
+        <div class="menu-item" onclick="popupLeaderboard()" data-tooltip="리더보드">
+          <span class="material-symbols-outlined">leaderboard</span>
+          <span class="keybind-badge" id="kb-badge-popupLeaderboard">5</span>
+        </div>
+        <div class="menu-item" onclick="popupProgress()" data-tooltip="단어장">
+          <span class="material-symbols-outlined">menu_book</span>
+          <span class="keybind-badge" id="kb-badge-popupProgress">3</span>
+          <span id="review-count-badge" class="review-count-badge" style="display: none;"></span>
+        </div>
+        <div class="menu-item" onclick="playSoundTest()" data-tooltip="소리 테스트">
+          <span class="material-symbols-outlined">sound_detection_loud_sound</span>
+          <span class="keybind-badge" id="kb-badge-playSoundTest">2</span>
+        </div>
+        <div class="menu-item" onclick="toggleDomain()" data-tooltip="히라가나/카타카나 전환">
+          <span class="domain-btn">あ</span>
+          <span class="keybind-badge" id="kb-badge-toggleDomain">1</span>
+        </div>
+        <div class="menu-item" onclick="popupSetting()" data-tooltip="설정">
+          <span class="material-symbols-outlined">settings</span>
+          <span class="keybind-badge" id="kb-badge-popupSetting">4</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="main-box">
+      <div id="mode-selection-layer" class="mode-selection">
+        <button class="mode-btn mode-study" onclick="startSessionWorkflow('study')">
+          <div class="mode-btn-content">
+            <span class="material-symbols-outlined mode-icon">menu_book</span>
+            <span class="mode-title">학습 모드</span>
+            <span class="mode-desc">반복 오디오 퀴즈로 가나 익히기</span>
+          </div>
+          <span class="keybind-badge" id="kb-badge-startStudy">Q</span>
+        </button>
+
+        <button class="mode-btn mode-record" onclick="startSessionWorkflow('record')">
+          <div class="mode-btn-content">
+            <span class="material-symbols-outlined mode-icon">timer</span>
+            <span class="mode-title">기록 모드</span>
+            <span class="mode-desc">타임어택으로 암기 속도 측정</span>
+          </div>
+          <span class="keybind-badge" id="kb-badge-startRecord">W</span>
+        </button>
+
+        <button class="mode-btn mode-spectator" onclick="startSessionWorkflow('spectator')">
+          <div class="mode-btn-content">
+            <span class="material-symbols-outlined mode-icon">visibility</span>
+            <span class="mode-title">관전 모드</span>
+            <span class="mode-desc">자동 재생으로 편안하게 복습</span>
+          </div>
+          <span class="keybind-badge" id="kb-badge-startSpectator">E</span>
+        </button>
+
+        <div class="mode-info-card">
+          <span class="material-symbols-outlined info-card-icon">auto_awesome</span>
+          <div class="info-card-text">
+            <strong>CharQuiz</strong>
+            <p>단축키(Q, W, E, 1~5)와 퀴즈 루프로 빠르게 가나를 마스터하세요.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const mainScript = document.createElement("script");
+    mainScript.type = "module";
+    mainScript.src = `./main.js?v=${window.CACHE_BUST || window.APP_VERSION}`;
+    document.body.appendChild(mainScript);
+  </script>
+</body>
+
+</html>

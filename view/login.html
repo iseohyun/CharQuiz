@@ -1,0 +1,18 @@
+<style>
+  .login-btn {
+    display: block;
+    margin: 1em auto;
+    padding: 1em;
+    font-size: 2em;
+    border-radius: 2em;
+    width: 50%;
+    border: 0px;
+    cursor: pointer;
+  }
+</style>
+<button class="login-btn" style="background-color: #3b5998;"
+  onclick="googleLogin();this.closest('.modal-overlay').remove()">Google</button>
+<button class="login-btn" style="background-color: #ebff32"
+  onclick="kakaoLogin();this.closest('.modal-overlay').remove()">Kakao</button>
+<button class="login-btn" style="background-color: #16ff25"onclick="naverLogin();this.closest('.modal-overlay').remove()">Naver</button>
+<button class="login-btn" onclick="logout();this.closest('.modal-overlay').remove()">로그아웃</button>
