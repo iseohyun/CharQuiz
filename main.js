@@ -6,6 +6,7 @@
 
 import {
   userConfig,
+  resetUserConfig,
   TIME_STEPS,
   SPEECH_STEPS
 } from './components/store.js';
@@ -33,7 +34,11 @@ import {
   submitSpeedrunRanking,
   getGlobalRankings,
   getStudyRankings,
-  submitStudyRanking
+  submitStudyRanking,
+  toPersistedSchema,
+  findGuestProgressToMerge,
+  markGuestMergeHandled,
+  mergeGuestProgress
 } from './components/db-handler.js';
 import {
   generateKeybindingsHtml,
@@ -46,6 +51,7 @@ import {
   initSessionPool,
   generateFourOptions,
   calculateReviewState,
+  isDueForReview,
   ALPHABETS,
   INTERVALS
 } from './components/engine.js';
@@ -63,6 +69,10 @@ import {
 } from './components/notification-handler.js';
 import {
   initAuthObserver,
+  getActiveAuthProvider,
+  getLoginSuccessHistory,
+  recordLoginSuccess,
+  formatUserEmailForDisplay,
   googleLogin,
   kakaoLogin,
   naverLogin,
@@ -174,41 +184,27 @@ async function initApp() {
 
   // 인증 모듈 상태 변화 관찰(Observer) 가동
   initAuthObserver(async (user) => {
-    const userNameDisplay = document.getElementById('profile-name');
+    // 계정이 바뀔 때(로그인/로그아웃) 이전 사용자의 설정이 메모리에 남지 않도록 기본값으로 되돌린다
+    resetUserConfig();
+    updateHeaderAuthUI(user);
+    renderLoginModalState(user);
 
     if (user) {
-      if (userNameDisplay) {
-        const pureName = (user.displayName || '사용자').split(' ')[0].split('(')[0].trim();
-        userNameDisplay.innerText = pureName;
-      }
-
+      recordLoginSuccess(getActiveAuthProvider(user));
       console.log(`[Observer] 로그인 확인: ${user.displayName}`);
       await initUser(user.uid);
-
-      const savedConfig = await getUserConfig();
-      if (savedConfig) {
-        if (!savedConfig.keybindings) {
-          savedConfig.keybindings = JSON.parse(JSON.stringify(userConfig.keybindings));
-        } else {
-          savedConfig.keybindings = Object.assign({}, userConfig.keybindings, savedConfig.keybindings);
-        }
-        Object.assign(userConfig, savedConfig);
-      }
-
-      window.currentDomain = userConfig.currentDomain;
-      updateDomainUI();
-      resetToMainModeSelection();
+      await offerGuestProgressMerge();
     } else {
       console.log("게스트 임시 세션으로 구동을 시작합니다.");
       await initUser(null);
-      if (userNameDisplay) {
-        userNameDisplay.innerText = "게스트";
-      }
-
-      window.currentDomain = userConfig.currentDomain;
-      updateDomainUI();
-      resetToMainModeSelection();
     }
+
+    // 로그인 사용자와 게스트 모두 저장된 설정을 불러온다 (기존에는 게스트 설정이 새로고침마다 초기화됨)
+    applySavedConfig(await getUserConfig());
+
+    window.currentDomain = userConfig.currentDomain;
+    updateDomainUI();
+    resetToMainModeSelection();
 
     updateVisualBadges(userConfig);
     updateReviewCountBadge();
@@ -217,9 +213,184 @@ async function initApp() {
 }
 
 /**
+ * 저장된 설정을 userConfig 에 반영한다. 새로 추가된 단축키 항목은 기본값을 유지한다.
+ * @param {object|null} savedConfig
+ */
+function applySavedConfig(savedConfig) {
+  if (!savedConfig) return;
+  savedConfig.keybindings = savedConfig.keybindings
+    ? Object.assign({}, userConfig.keybindings, savedConfig.keybindings)
+    : JSON.parse(JSON.stringify(userConfig.keybindings));
+  Object.assign(userConfig, savedConfig);
+}
+
+/**
+ * 로그인 직후, 같은 기기에서 게스트로 학습한 기록을 계정으로 가져올지 묻는다.
+ * 계정 기록이 더 최신인 문자는 건드리지 않는다.
+ */
+async function offerGuestProgressMerge() {
+  const candidate = findGuestProgressToMerge();
+  if (!candidate || candidate.items.length === 0) return;
+
+  const shouldMerge = confirm(
+    `이 기기에서 게스트로 학습한 기록이 ${candidate.items.length}개 문자 있습니다.\n` +
+    `로그인한 계정으로 가져올까요?\n\n(계정 기록이 더 최신인 문자는 그대로 둡니다)`
+  );
+  markGuestMergeHandled(candidate.flagKey);
+  if (!shouldMerge) return;
+
+  const mergedCount = await mergeGuestProgress(candidate.items);
+  console.log(`[GuestMerge] 게스트 학습 기록 ${mergedCount}개 문자를 계정으로 가져왔습니다.`);
+}
+
+const PROVIDER_META = {
+  google: { label: 'Google 계정', short: 'G', className: 'provider-google' },
+  kakao: { label: '카카오 계정', short: 'K', className: 'provider-kakao' },
+  naver: { label: '네이버 계정', short: 'N', className: 'provider-naver' }
+};
+
+/**
+ * 상단 헤더 좌측 사용자 프로필 표시(플랫폼 칩 및 이름)를 로그인 상태에 맞춰 갱신한다.
+ * @param {object|null} user
+ */
+function updateHeaderAuthUI(user) {
+  const userNameDisplay = document.getElementById('profile-name');
+  const iconEl = document.getElementById('header-auth-icon');
+  const chipEl = document.getElementById('header-provider-chip');
+
+  if (user) {
+    const pureName = (user.displayName || '사용자').split(' ')[0].split('(')[0].trim();
+    if (userNameDisplay) userNameDisplay.innerText = pureName;
+
+    const provider = getActiveAuthProvider(user);
+    const meta = PROVIDER_META[provider] || PROVIDER_META.google;
+    if (iconEl) iconEl.classList.add('hidden');
+    if (chipEl) {
+      chipEl.className = `header-provider-chip ${meta.className}`;
+      chipEl.innerText = meta.short;
+      chipEl.title = `${meta.label}으로 로그인됨`;
+    }
+  } else {
+    if (userNameDisplay) userNameDisplay.innerText = '게스트';
+    if (iconEl) iconEl.classList.remove('hidden');
+    if (chipEl) {
+      chipEl.className = 'header-provider-chip hidden';
+      chipEl.innerText = '';
+    }
+  }
+}
+
+/**
+ * 열려 있는 로그인 모달(view/login.html)의 화면을 로그인 여부에 따라 전환한다.
+ * - 비로그인: 소셜 로그인 버튼 3종 노출 (로그아웃 숨김)
+ * - 로그인됨: 현재 로그인된 플랫폼/계정 정보 카드 및 로그아웃 버튼 노출
+ * @param {object|null} [user=auth.currentUser]
+ */
+function renderLoginModalState(user = auth.currentUser) {
+  const modalRoot = document.getElementById('auth-modal-root');
+  if (!modalRoot) return;
+
+  const guestView = document.getElementById('auth-guest-view');
+  const userView = document.getElementById('auth-user-view');
+  const modalTitleEl = modalRoot.closest('.modal-content')?.querySelector('.modal-title');
+
+  if (!user) {
+    if (modalTitleEl) modalTitleEl.innerText = '간편 로그인';
+    guestView?.classList.remove('hidden');
+    userView?.classList.add('hidden');
+
+    // 과거 로그인 성공 이력 확인:
+    // - 한 번도 로그인한 적이 없으면(history.length === 0) 3개 모두 선명하게 활성화
+    // - 성공 이력이 있으면 성공한 적 없는 로그인 수단만 음영(.social-unvisited) 처리 (클릭은 가능)
+    const history = getLoginSuccessHistory();
+    const hasAnyHistory = history.length > 0;
+    modalRoot.querySelectorAll('.social-login-btn[data-provider]').forEach((btn) => {
+      const provider = btn.dataset.provider;
+      const hasSucceededBefore = history.includes(provider);
+      btn.classList.toggle('social-unvisited', hasAnyHistory && !hasSucceededBefore);
+
+      let usedBadge = btn.querySelector('.social-used-badge');
+      if (hasAnyHistory && hasSucceededBefore) {
+        if (!usedBadge) {
+          usedBadge = document.createElement('span');
+          usedBadge.className = 'social-used-badge';
+          usedBadge.innerText = '사용 이력';
+          btn.appendChild(usedBadge);
+        }
+      } else if (usedBadge) {
+        usedBadge.remove();
+      }
+    });
+    return;
+  }
+
+  if (modalTitleEl) modalTitleEl.innerText = '로그인 계정';
+  guestView?.classList.add('hidden');
+  userView?.classList.remove('hidden');
+
+  const provider = getActiveAuthProvider(user);
+  const meta = PROVIDER_META[provider] || PROVIDER_META.google;
+
+  const badgeEl = document.getElementById('auth-provider-badge');
+  if (badgeEl) {
+    badgeEl.className = `auth-provider-badge ${meta.className}`;
+    badgeEl.innerText = meta.label;
+  }
+
+  const nameEl = document.getElementById('auth-user-name');
+  if (nameEl) {
+    nameEl.innerText = (user.displayName || '사용자').split('(')[0].trim();
+  }
+
+  const emailEl = document.getElementById('auth-user-email');
+  if (emailEl) {
+    emailEl.innerText = formatUserEmailForDisplay(user) || `${meta.label} 연동됨`;
+  }
+
+  const avatarBox = document.getElementById('auth-avatar-box');
+  if (avatarBox) {
+    avatarBox.innerHTML = '';
+    if (user.photoURL) {
+      const img = document.createElement('img');
+      img.src = user.photoURL;
+      img.alt = '프로필 이미지';
+      img.referrerPolicy = 'no-referrer';
+      img.onerror = () => {
+        avatarBox.innerHTML = '<span class="material-symbols-outlined">person</span>';
+      };
+      avatarBox.appendChild(img);
+    } else {
+      avatarBox.innerHTML = '<span class="material-symbols-outlined">person</span>';
+    }
+  }
+}
+
+/**
+ * 진행 중인 모든 세션 타이머(학습/기록 타이머, 관전 루프)와 음성을 정지한다.
+ * 새 세션을 시작하거나 메인 화면으로 돌아갈 때 이전 루프가 백그라운드에서 계속 도는 것을 막는다.
+ */
+function stopAllSessionTimers() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  if (spectatorIntervalId) {
+    clearInterval(spectatorIntervalId);
+    spectatorIntervalId = null;
+  }
+  stopAllVoices();
+}
+
+// 모드 진입 중복 실행 방지 (버튼 연타, 단축키 반복 입력)
+let isStartingSession = false;
+
+/**
  * 모드 선택 버튼 클릭 시 초기 화면을 가리고 게임창을 기동하는 진입점
  */
 window.startSessionWorkflow = async function (mode) {
+  if (isStartingSession) return;
+  isStartingSession = true;
+  stopAllSessionTimers();
   currentMode = mode;
   try {
     const versionQuery = (window.CACHE_BUST || window.APP_VERSION) ? `?v=${window.CACHE_BUST || window.APP_VERSION}` : '';
@@ -283,6 +454,8 @@ window.startSessionWorkflow = async function (mode) {
     }
   } catch (error) {
     console.error("세션 진입 중 에러 발생:", error);
+  } finally {
+    isStartingSession = false;
   }
 };
 
@@ -557,10 +730,31 @@ async function startSpeedrunSession() {
 
   const dbData = await getAllProgress(userConfig.currentDomain);
   const fullPool = buildFullDomainPool(userConfig.currentDomain);
+  const now = Date.now();
 
   currentPool = fullPool.map(item => {
     const dbItem = dbData[item.charId.toString()];
-    return dbItem ? { ...dbItem, char: item.char, isUnlocked: (dbItem.stage > 0) } : { ...item, isUnlocked: false };
+    if (!dbItem) return { ...item, isUnlocked: false };
+
+    // DB에 남아 있을 수 있는 세션 전용 플래그(isEligibleForPromotion 등)는 버리고,
+    // 승급 자격은 학습 모드와 같은 기준(복습 주기 충족 여부)으로 다시 계산한다.
+    const saved = toPersistedSchema(dbItem);
+    return {
+      ...saved,
+      domain: userConfig.currentDomain,
+      charId: item.charId,
+      char: item.char,
+      stage: saved.stage || 0,
+      recentLatencies: saved.recentLatencies || [],
+      latenciesIdx: saved.latenciesIdx || 0,
+      outCnt: saved.outCnt || 0,
+      resetOutCnt: saved.resetOutCnt || 0,
+      totalSolved: saved.totalSolved || 0,
+      hasHistory: (saved.totalSolved || 0) > 0,
+      isEligibleForPromotion: isDueForReview(saved, now),
+      hasBeenPromotedThisSession: false,
+      isUnlocked: (saved.stage || 0) > 0
+    };
   });
 
   currentPool.sort(() => Math.random() - 0.5);
@@ -901,14 +1095,7 @@ window.exitQuizTrigger = function () {
  * 세션 타임아웃 또는 강제 이탈 시 메인 선택 화면으로 리셋 복귀
  */
 function resetToMainModeSelection() {
-  if (timerInterval) {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-  if (spectatorIntervalId) {
-    clearInterval(spectatorIntervalId);
-    spectatorIntervalId = null;
-  }
+  stopAllSessionTimers();
 
   const headerQuizControl = document.getElementById('header-quiz-control');
   if (headerQuizControl) headerQuizControl.style.display = 'none';
@@ -1165,35 +1352,27 @@ async function openRemoteModalPopup(viewName, options = {}) {
     let htmlContent = await response.text();
 
     if (viewName === 'setting') {
-      const timeIdx = TIME_STEPS.indexOf(userConfig.learningTime) ?? 4;
-      const speechIdx = SPEECH_STEPS.indexOf(userConfig.speechRate) ?? 2;
+      const rawTimeIdx = TIME_STEPS.indexOf(userConfig.learningTime);
+      const timeIdx = rawTimeIdx >= 0 ? rawTimeIdx : 4;
+      const rawSpeechIdx = SPEECH_STEPS.indexOf(userConfig.speechRate);
+      const speechIdx = rawSpeechIdx >= 0 ? rawSpeechIdx : 2;
 
       let userName = auth.currentUser ? (auth.currentUser.displayName || "이름 없음") : "게스트";
       if (userName.includes('(')) userName = userName.split('(')[0].trim();
 
-      let rawEmail = auth.currentUser ? auth.currentUser.email : "";
-      let maskedEmail = "";
-      if (rawEmail) {
-        const parts = rawEmail.split('@');
-        if (parts.length === 2) {
-          const idPart = parts[0];
-          const keepLen = Math.ceil(idPart.length / 2);
-          maskedEmail = idPart.substring(0, keepLen) + '*'.repeat(idPart.length - keepLen) + '@' + parts[1];
-        }
-      }
-
+      const maskedEmail = formatUserEmailForDisplay(auth.currentUser);
       const kbHtml = generateKeybindingsHtml(userConfig);
 
       htmlContent = htmlContent
-        .replace('{{userName}}', userName)
-        .replace('{{userEmail}}', maskedEmail)
+        .replace('{{userName}}', () => userName)
+        .replace('{{userEmail}}', () => maskedEmail)
         .replace('{{timeIdx}}', timeIdx)
         .replace('{{learningTime}}', userConfig.learningTime)
         .replace('{{MAX_POOL_SIZE}}', userConfig.MAX_POOL_SIZE)
         .replace('{{speechIdx}}', speechIdx)
         .replace('{{speechRate}}', userConfig.speechRate)
         .replace('{{#if autoProgress}}checked{{/if}}', userConfig.autoProgress ? 'checked' : '')
-        .replace('{{keybindingsConfig}}', kbHtml);
+        .replace('{{keybindingsConfig}}', () => kbHtml);
     }
 
     const viewTitles = {
@@ -1201,7 +1380,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
       leaderboard: '리더보드',
       setting: '환경설정',
       progress: '단어장 & 학습 현황',
-      login: '사용자 계정',
+      login: auth.currentUser ? '로그인 계정' : '간편 로그인',
       spectatorMode: '관전 모드',
       studyMode: '학습 모드'
     };
@@ -1303,6 +1482,10 @@ async function openRemoteModalPopup(viewName, options = {}) {
 
     if (viewName === 'help') {
       await bindSuggestionEvents(overlay);
+    }
+
+    if (viewName === 'login') {
+      renderLoginModalState(auth.currentUser);
     }
 
     if (viewName === 'setting') {

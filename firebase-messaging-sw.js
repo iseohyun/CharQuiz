@@ -39,3 +39,17 @@ messaging.onBackgroundMessage((payload) => {
 
   self.registration.showNotification(notificationTitle, notificationOptions);
 });
+
+// 알림 클릭 시 이미 열린 CharQuiz 창이 있으면 포커스, 없으면 서비스 워커 scope(= 앱 기준 URL)를 새로 연다.
+// scope 를 쓰므로 서비스 경로가 바뀌어도 수정할 필요가 없다.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = self.registration.scope;
+
+  event.waitUntil((async () => {
+    const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const existingClient = windowClients.find((client) => client.url.startsWith(targetUrl));
+    if (existingClient) return existingClient.focus();
+    return self.clients.openWindow(targetUrl);
+  })());
+});

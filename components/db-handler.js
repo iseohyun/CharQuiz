@@ -8,6 +8,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  documentId,
   getDoc,
   getDocs,
   setDoc,
@@ -19,11 +20,38 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 import { ALPHABETS } from './engine.js';
+import { migrateLegacyStorage } from './storage-migration.js';
+import { toLocalDateKey, getRecentLocalDateKeys } from './date-utils.js';
 
 // 내부 상주 변수 및 도메인별 다차원 메모리 캐시 구조화
 let currentUserUid = null;
 let progressCache = {};
 let progressMeta = {};
+
+// 주간 학습 통계 서버 조회 결과 캐시 (사용자별, 10분 유효)
+const WEEKLY_STATS_CACHE_TTL_MS = 10 * 60 * 1000;
+let weeklyServerStatsCache = { uid: null, fetchedAt: 0, byDay: {} };
+
+// Firestore/localStorage 에 저장할 진도 필드 목록 (세션 중에만 쓰는 플래그는 저장하지 않음)
+const PERSISTED_PROGRESS_FIELDS = [
+  'domain', 'charId', 'stage', 'recentLatencies', 'latenciesIdx',
+  'outCnt', 'resetOutCnt', 'totalSolved', 'lastSessionTime', 'sessionStreak', 'updatedAt'
+];
+
+/**
+ * 세션용 아이템에서 영속 필드만 골라 저장용 스키마를 만든다.
+ * isEligibleForPromotion, hasBeenPromotedThisSession, hasHistory, isUnlocked, char 같은
+ * 세션 전용 값이 DB에 남아 다른 모드(기록 모드 등)에 섞이는 것을 막는다.
+ * @param {object} item
+ * @returns {object}
+ */
+export const toPersistedSchema = (item) => {
+  const schema = {};
+  PERSISTED_PROGRESS_FIELDS.forEach((field) => {
+    if (item[field] !== undefined) schema[field] = item[field];
+  });
+  return schema;
+};
 
 /**
  * 게스트용 고유 기기 ID 생성 및 반환
@@ -78,6 +106,9 @@ const _loadLocalProgressCache = () => {
  * 사용자 UID 설정 및 도메인 전역 캐시 갱신 초기화
  */
 export const initUser = async (uid) => {
+  // 이름 변경(KanaLoop → CharQuiz) 전 로컬 데이터를 1회 복구 (이미 했으면 즉시 반환)
+  migrateLegacyStorage();
+
   if (uid) {
     currentUserUid = uid;
   } else {
@@ -319,11 +350,12 @@ export const saveSessionPoolState = async (domain, sessionPool) => {
   if (!progressCache[domain]) progressCache[domain] = {};
   progressMeta[domain] = now;
 
+  // 세션 전용 플래그를 제거한 저장용 스키마 목록
+  const persistedItems = sessionPool.map((item) => toPersistedSchema({ ...item, updatedAt: now }));
+
   // 1. 로컬 메모리 & localStorage 0ms 실시간 반영
-  sessionPool.forEach(item => {
-    const key = item.charId.toString();
-    item.updatedAt = now;
-    progressCache[domain][key] = item;
+  persistedItems.forEach(item => {
+    progressCache[domain][item.charId.toString()] = item;
   });
   _saveLocalProgressCache();
 
@@ -331,7 +363,7 @@ export const saveSessionPoolState = async (domain, sessionPool) => {
   try {
     const batch = writeBatch(db);
 
-    sessionPool.forEach(item => {
+    persistedItems.forEach(item => {
       const key = item.charId.toString();
       const docRef = doc(db, 'users', currentUserUid, 'progress', domain, 'chars', key);
       batch.set(docRef, item);
@@ -353,7 +385,7 @@ export const saveSessionPoolState = async (domain, sessionPool) => {
 export const updateDailyStudyTime = async (seconds, domain) => {
   if (!currentUserUid || !domain) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   const storageKey = `CHARQUIZ_STUDY_STATS_${currentUserUid}`;
 
   // 1. 로컬 localStorage 0ms 실시간 누계 기록
@@ -385,7 +417,7 @@ export const updateDailyStudyTime = async (seconds, domain) => {
 export const updateDailyStats = async (avgAll, avgR10, avgR5) => {
   if (!currentUserUid) return;
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = toLocalDateKey();
   const docRef = doc(db, 'users', currentUserUid, 'daily_summary', today);
 
   await setDoc(docRef, {
@@ -513,34 +545,64 @@ export const getUserConfig = async () => {
 };
 
 /**
- * 최근 7일간의 학습 통계 가져오기 (100% 로컬 퍼스트 - 서버 Read 0건)
+ * 서버(users/{uid}/study_stats)의 최근 7일 학습시간 문서를 1회 쿼리로 읽어 캐시한다.
+ * 로컬 기록이 없는 기기(다른 기기, 브라우저 데이터 삭제 등)에서도 주간 차트를 복원하기 위한 폴백이다.
+ * @param {string[]} dayKeys 오래된 날짜부터 정렬된 'YYYY-MM-DD' 키
+ * @returns {Promise<object>} { 'YYYY-MM-DD': { [domain]: seconds } }
+ */
+const _fetchServerWeeklyStats = async (dayKeys) => {
+  const isCacheValid = weeklyServerStatsCache.uid === currentUserUid &&
+    (Date.now() - weeklyServerStatsCache.fetchedAt) < WEEKLY_STATS_CACHE_TTL_MS;
+  if (isCacheValid) return weeklyServerStatsCache.byDay;
+
+  const byDay = {};
+  try {
+    const statsRef = collection(db, 'users', currentUserUid, 'study_stats');
+    const q = query(
+      statsRef,
+      where(documentId(), '>=', dayKeys[0]),
+      where(documentId(), '<=', dayKeys[dayKeys.length - 1])
+    );
+    const snapshot = await getDocs(q);
+    snapshot.forEach((docSnap) => {
+      byDay[docSnap.id] = docSnap.data();
+    });
+    weeklyServerStatsCache = { uid: currentUserUid, fetchedAt: Date.now(), byDay };
+  } catch (err) {
+    console.warn("[LocalFirst] 주간 학습통계 서버 조회 생략 (로컬 값만 사용):", err.message);
+  }
+  return byDay;
+};
+
+/**
+ * 최근 7일간의 학습 통계 가져오기 (로컬 기록 + 서버 기록 중 큰 값 사용)
+ * 서버 기록은 모든 기기의 누계이고, 로컬 기록은 오프라인일 때 서버 저장이 실패한 분까지 포함하므로
+ * 날짜별로 더 큰 값을 사용한다. (서버 조회는 10분 캐시, 최대 7건 Read)
  */
 export const getWeeklyStats = async (domain) => {
   if (!currentUserUid || !domain) return { total: 0, history: {} };
 
   const stats = { total: 0, history: {} };
-  const days = [];
+  const days = getRecentLocalDateKeys(7);
 
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dayStr = d.toISOString().split('T')[0];
-    days.push(dayStr);
-  }
-
+  let localStats = {};
   try {
     const storageKey = `CHARQUIZ_STUDY_STATS_${currentUserUid}`;
     const rawStats = localStorage.getItem(storageKey);
-    const statsObj = rawStats ? JSON.parse(rawStats) : {};
-
-    days.forEach(dayStr => {
-      const seconds = (statsObj[dayStr] && statsObj[dayStr][domain]) || 0;
-      stats.history[dayStr] = seconds;
-      stats.total += seconds;
-    });
+    localStats = rawStats ? JSON.parse(rawStats) : {};
   } catch (e) {
     console.warn("[LocalFirst] 주간 학습통계 로컬 계산 실패:", e);
   }
+
+  const serverStats = await _fetchServerWeeklyStats(days);
+
+  days.forEach(dayStr => {
+    const localSeconds = (localStats[dayStr] && localStats[dayStr][domain]) || 0;
+    const serverSeconds = (serverStats[dayStr] && serverStats[dayStr][domain]) || 0;
+    const seconds = Math.max(localSeconds, serverSeconds);
+    stats.history[dayStr] = seconds;
+    stats.total += seconds;
+  });
 
   return stats;
 };
@@ -687,4 +749,94 @@ export const getUserSuggestion = async () => {
   const docRef = doc(db, 'suggestions', currentUserUid);
   const docSnap = await getDoc(docRef);
   return docSnap.exists() ? docSnap.data() : null;
+};
+
+
+/**
+ * 이 기기에 저장된 게스트 ID 조회 (없으면 null, 새로 만들지 않음)
+ */
+export const getStoredGuestId = () => localStorage.getItem('GUEST_ID');
+
+/**
+ * 로그인 직후, 같은 기기에서 게스트로 학습한 진도 중 계정에 없거나 계정보다 최신인 기록을 찾는다.
+ * 마지막으로 병합 여부를 물어본 시각 이후에 학습한 게스트 기록만 대상으로 하므로 같은 질문을 반복하지 않는다.
+ * @returns {{ guestId: string, flagKey: string, items: Array<{domain: string, key: string, data: object}> } | null}
+ */
+export const findGuestProgressToMerge = () => {
+  const guestId = getStoredGuestId();
+  if (!guestId || !currentUserUid || currentUserUid === guestId) return null;
+
+  const flagKey = `CHARQUIZ_GUEST_MERGE_HANDLED_${guestId}_${currentUserUid}`;
+  const lastHandledAt = Number(localStorage.getItem(flagKey)) || 0;
+
+  let guestCache = {};
+  try {
+    guestCache = JSON.parse(localStorage.getItem(`CHARQUIZ_PROGRESS_CACHE_${guestId}`) || '{}');
+  } catch (e) {
+    console.warn("[GuestMerge] 게스트 진도 캐시를 읽지 못했습니다:", e);
+    return null;
+  }
+
+  const items = [];
+  Object.entries(guestCache).forEach(([domain, chars]) => {
+    if (!ALPHABETS[domain] || !chars || typeof chars !== 'object') return;
+    Object.entries(chars).forEach(([key, guestData]) => {
+      if (!guestData || !(guestData.stage > 0 || guestData.totalSolved > 0)) return;
+      const accountData = progressCache[domain] ? progressCache[domain][key] : null;
+      const guestTime = guestData.lastSessionTime || 0;
+      const accountTime = accountData ? (accountData.lastSessionTime || 0) : -1;
+      if (guestTime > lastHandledAt && guestTime > accountTime) {
+        items.push({ domain, key, data: toPersistedSchema({ ...guestData, domain }) });
+      }
+    });
+  });
+
+  return { guestId, flagKey, items };
+};
+
+/**
+ * 병합 여부를 물어봤다는 표시를 남겨 같은 질문을 반복하지 않게 한다.
+ * @param {string} flagKey findGuestProgressToMerge() 가 반환한 flagKey
+ */
+export const markGuestMergeHandled = (flagKey) => {
+  try {
+    localStorage.setItem(flagKey, String(Date.now()));
+  } catch (e) {
+    console.warn("[GuestMerge] 병합 처리 표시 저장 실패:", e);
+  }
+};
+
+/**
+ * 게스트 진도를 현재 로그인 계정으로 병합한다 (로컬 즉시 반영 + 도메인별 배치 저장).
+ * @param {Array<{domain: string, key: string, data: object}>} items
+ * @returns {Promise<number>} 병합한 문자 수
+ */
+export const mergeGuestProgress = async (items) => {
+  if (!currentUserUid || !items || items.length === 0) return 0;
+
+  const now = Date.now();
+  const itemsByDomain = {};
+  items.forEach(({ domain, key, data }) => {
+    if (!progressCache[domain]) progressCache[domain] = {};
+    const merged = { ...data, updatedAt: now };
+    progressCache[domain][key] = merged;
+    progressMeta[domain] = now;
+    (itemsByDomain[domain] = itemsByDomain[domain] || []).push({ key, merged });
+  });
+  _saveLocalProgressCache();
+
+  try {
+    await Promise.all(Object.entries(itemsByDomain).map(async ([domain, domainItems]) => {
+      const batch = writeBatch(db);
+      domainItems.forEach(({ key, merged }) => {
+        batch.set(doc(db, 'users', currentUserUid, 'progress', domain, 'chars', key), merged);
+      });
+      batch.set(doc(db, 'users', currentUserUid), { progressMeta: { [domain]: now } }, { merge: true });
+      await batch.commit();
+    }));
+  } catch (err) {
+    console.warn("[GuestMerge] 서버 저장 실패 (이 기기에는 반영됨, 다른 기기에는 보이지 않을 수 있음):", err.message);
+  }
+
+  return items.length;
 };

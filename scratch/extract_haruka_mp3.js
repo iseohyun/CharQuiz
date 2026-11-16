@@ -20,7 +20,8 @@ const KANA_MAP = {
   "わ": "wa", "を": "wo", "ん": "n"
 };
 
-const targetDir = 'c:/git/html/small-project/CharQuiz/assets/audio/ja';
+// 스크립트 위치 기준 경로 (저장소를 어디로 옮겨도 동작)
+const targetDir = path.resolve(__dirname, '..', 'assets', 'audio', 'ja');
 if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });
 }
@@ -31,7 +32,7 @@ if (!fs.existsSync(targetDir)) {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
-  await page.goto('http://127.0.0.1/small-project/CharQuiz/', { waitUntil: 'domcontentloaded' });
+  await page.goto(process.env.BASE_URL || 'http://127.0.0.1:5500/', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1000);
 
   for (const [charStr, romaName] of Object.entries(KANA_MAP)) {

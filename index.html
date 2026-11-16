@@ -16,12 +16,32 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <script>
     window.APP_VERSION = "v1.0.5";
-    window.CACHE_BUST = "20261109v1";
+    window.CACHE_BUST = "20261116v3";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
     cssLink.href = `common.css?v=${window.CACHE_BUST}`;
     document.head.appendChild(cssLink);
+
+    // ES 모듈 캐시 버스팅: main.js 뿐 아니라 components/*.js 에도 ?v=CACHE_BUST 를 붙인다.
+    // 새 main.js 와 캐시된 옛 컴포넌트가 섞여 "does not provide an export named ..." 로 앱이 멈추는 것을 막는다.
+    // ⚠️ components/ 에 모듈을 추가하면 아래 목록에도 추가할 것 (.agents/rules/project_architecture.md 참고)
+    (function registerVersionedImportMap() {
+      const componentModules = [
+        "app-config", "audio-manager", "auth-handler", "date-utils", "db-handler", "engine",
+        "firebase-config", "keybind-manager", "notification-handler", "storage-migration",
+        "store", "suggestion-handler", "ui-modal-handler"
+      ];
+      const imports = {};
+      componentModules.forEach((name) => {
+        const moduleUrl = new URL(`./components/${name}.js`, document.baseURI).href;
+        imports[moduleUrl] = `${moduleUrl}?v=${window.CACHE_BUST}`;
+      });
+      const importMapScript = document.createElement("script");
+      importMapScript.type = "importmap";
+      importMapScript.textContent = JSON.stringify({ imports });
+      document.head.appendChild(importMapScript);
+    })();
   </script>
 </head>
 
@@ -32,7 +52,8 @@
       <div class="user-info-left">
         <div class="menu-item profile-trigger-item" onclick="popupLogin()">
           <span class="user-name-trigger">
-            <span class="material-symbols-outlined">account_box</span>
+            <span class="material-symbols-outlined" id="header-auth-icon">account_box</span>
+            <span id="header-provider-chip" class="header-provider-chip hidden" aria-hidden="true"></span>
             <span id="profile-name">게스트</span>님
           </span>
           <span class="keybind-badge" id="kb-badge-popupLogin">ESC</span>

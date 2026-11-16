@@ -32,6 +32,21 @@ export function getFlattenedDataset(domain) {
 }
 
 /**
+ * 복습 주기를 채웠는지(= 이번 세션에서 정식 승급 자격이 있는지) 판정한다.
+ * 학습 모드(initSessionPool)와 기록 모드가 같은 기준을 쓰도록 한곳에서 관리한다.
+ * @param {object} item 진도 데이터 (totalSolved, stage, lastSessionTime)
+ * @param {number} [now=Date.now()]
+ * @returns {boolean}
+ */
+export function isDueForReview(item, now = Date.now()) {
+  if (!item || !(item.totalSolved > 0)) return false;
+  const stage = item.stage || 0;
+  const requiredMin = INTERVALS[stage] !== undefined ? INTERVALS[stage] : INTERVALS[INTERVALS.length - 1];
+  const elapsedMin = (now - (item.lastSessionTime || 0)) / (60 * 1000);
+  return elapsedMin >= requiredMin;
+}
+
+/**
  * 세션 진입 시 단어 풀 구성 함수
  */
 export function initSessionPool(domain, dbData = {}, autoProgress = true, MAX_POOL_SIZE = 10) {
@@ -66,11 +81,7 @@ export function initSessionPool(domain, dbData = {}, autoProgress = true, MAX_PO
   };
 
   // [1단계] '복습 주기를 채운' 정식 단어 수급
-  const reviewCandidates = processedData.filter(item => {
-    if (!item.hasHistory) return false;
-    const timeDiffMin = (now - item.lastSessionTime) / (60 * 1000);
-    return timeDiffMin >= INTERVALS[item.stage];
-  });
+  const reviewCandidates = processedData.filter(item => isDueForReview(item, now));
 
   // 정식 복습 주기를 채운 후보군은 승급 가능 자격 flag 부여
   reviewCandidates.forEach(item => {

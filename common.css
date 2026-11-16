@@ -1,6 +1,6 @@
 /* CharQuiz Modern Design System */
 
-/* 🌈 10초 주기 360도 그라데이션 회전 커스텀 프로퍼티 */
+/* ?뙂 10珥?二쇨린 360??洹몃씪?곗씠???뚯쟾 而ㅼ뒪? ?꾨줈?쇳떚 */
 @property --gradient-angle {
   syntax: "<angle>";
   initial-value: 0deg;
@@ -72,7 +72,7 @@ body {
   box-sizing: border-box;
 }
 
-/* 상단 유저 프로필 & 헤더 영역 */
+/* ?곷떒 ?좎? ?꾨줈??& ?ㅻ뜑 ?곸뿭 */
 .user-profile-box {
   display: flex;
   justify-content: space-between;
@@ -104,7 +104,6 @@ body {
 .hidden {
   display: none !important;
 }
-
 .header-quiz-control {
   display: flex;
   align-items: center;
@@ -183,7 +182,7 @@ body {
   box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
 }
 
-/* 타이머 바 영역 */
+/* ??대㉧ 諛??곸뿭 */
 #timer-container {
   width: 100%;
   height: 32px;
@@ -212,7 +211,7 @@ body {
   white-space: nowrap;
 }
 
-/* 메인 영역 */
+/* 硫붿씤 ?곸뿭 */
 #main-box {
   display: flex;
   width: 100%;
@@ -228,7 +227,7 @@ body {
   font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 
-/* 모드 선택 카드 그리드 */
+/* 紐⑤뱶 ?좏깮 移대뱶 洹몃━??*/
 .mode-selection {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -333,7 +332,7 @@ body {
   line-height: 1.3;
 }
 
-/* 안내 정보 카드 */
+/* ?덈궡 ?뺣낫 移대뱶 */
 .mode-info-card {
   width: 100%;
   height: 100%;
@@ -376,7 +375,7 @@ body {
   line-height: 1.4;
 }
 
-/* 단축키 배지 */
+/* ?⑥텞??諛곗? */
 .keybind-badge {
   position: absolute;
   top: 14px;
@@ -401,7 +400,7 @@ body {
   }
 }
 
-/* 복습 필요 배지 */
+/* 蹂듭뒿 ?꾩슂 諛곗? */
 .review-count-badge {
   position: absolute;
   top: -4px;
@@ -422,7 +421,7 @@ body {
   z-index: 9;
 }
 
-/* 모달 팝업 디자인 */
+/* 紐⑤떖 ?앹뾽 ?붿옄??*/
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -562,10 +561,10 @@ body {
 }
 
 /* ==========================================================================
-   🎮 게임 플레이 모드별 종합 고급 스타일링 (학습 / 기록 / 관전 모드)
+   ?렜 寃뚯엫 ?뚮젅??紐⑤뱶蹂?醫낇빀 怨좉툒 ?ㅽ??쇰쭅 (?숈뒿 / 湲곕줉 / 愿??紐⑤뱶)
    ========================================================================== */
 
-/* 퀴즈 게임 레이어 */
+/* ?댁쫰 寃뚯엫 ?덉씠??*/
 #quiz-game-layer {
   display: flex;
   flex-direction: column;
@@ -576,7 +575,7 @@ body {
   justify-content: space-between;
 }
 
-/* 상단 퀴즈 헤더 & 타임 프로그레스 트랙 */
+/* ?곷떒 ?댁쫰 ?ㅻ뜑 & ????꾨줈洹몃젅???몃옓 */
 .quiz-header {
   display: flex;
   justify-content: space-between;
@@ -664,7 +663,7 @@ body {
   transform: scale(1.08);
 }
 
-/* 타임 프로그레스 바 */
+/* ????꾨줈洹몃젅??諛?*/
 .timer-bar-container {
   width: 100%;
   height: 6px;
@@ -702,7 +701,7 @@ body {
   }
 }
 
-/* 대시보드 & 숙련도 배지 그리드 */
+/* ??쒕낫??& ?숇젴??諛곗? 洹몃━??*/
 .dashboard {
   background: rgba(248, 250, 252, 0.85);
   border-radius: var(--radius-md);
@@ -756,7 +755,7 @@ body {
   color: #b91c1c;
 }
 
-/* 플레이 영역 (오디오 버튼 + 4지선다 옵션 그리드) */
+/* ?뚮젅???곸뿭 (?ㅻ뵒??踰꾪듉 + 4吏?좊떎 ?듭뀡 洹몃━?? */
 .play-area {
   display: flex;
   flex-direction: column;
@@ -769,7 +768,7 @@ body {
   overflow: hidden;
 }
 
-/* 오디오 발음 버튼 (#audio-trigger) */
+/* ?ㅻ뵒??諛쒖쓬 踰꾪듉 (#audio-trigger) */
 #audio-trigger {
   margin: 0;
   background: linear-gradient(135deg, #6366f1, #3b82f6);
@@ -804,7 +803,7 @@ body {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
-/* 4지선다 옵션 그리드 & 버튼 (.option-btn) */
+/* 4吏?좊떎 ?듭뀡 洹몃━??& 踰꾪듉 (.option-btn) */
 .options-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -912,7 +911,7 @@ body {
   letter-spacing: 0;
 }
 
-/* 관전 모드 (Spectator Mode) 세련된 다크 사이버 캔버스 */
+/* 愿??紐⑤뱶 (Spectator Mode) ?몃젴???ㅽ겕 ?ъ씠踰?罹붾쾭??*/
 #spectator-game-layer {
   display: flex;
   flex-direction: column;
@@ -961,11 +960,355 @@ body {
   }
 }
 
-.hidden {
-  display: none !important;
+/* ==========================================================================
+   ?뵍 ?ъ슜??怨꾩젙 & ?뚯뀥 濡쒓렇??紐⑤떖 (view/login.html)
+   ========================================================================== */
+.auth-modal-container {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 2px;
 }
 
-/* 애니메이션 Keyframes */
+.auth-view-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-guest-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.auth-guest-icon {
+  font-size: 24px !important;
+  color: #3b82f6;
+  background: #eff6ff;
+  padding: 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.auth-guest-text strong {
+  display: block;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.auth-guest-text p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.auth-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.social-login-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-family: var(--font-main);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  box-sizing: border-box;
+}
+
+.social-login-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.social-login-btn:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.social-icon-wrap {
+  position: absolute;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.social-btn-label {
+  letter-spacing: -0.2px;
+}
+
+.social-google {
+  background: #ffffff;
+  color: #1f2937;
+  border: 1px solid #d1d5db;
+}
+
+.social-google:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.social-kakao {
+  background: #FEE500;
+  color: rgba(0, 0, 0, 0.85);
+  border: 1px solid #f5dc00;
+}
+
+.social-kakao:hover {
+  filter: brightness(0.97);
+}
+
+.social-naver {
+  background: #03C75A;
+  color: #ffffff;
+  border: 1px solid #02b351;
+}
+
+.social-naver:hover {
+  filter: brightness(0.96);
+}
+
+/* 과거 로그인 성공 이력이 없는 버튼: 음영 처리하되 클릭은 100% 가능 */
+.social-login-btn.social-unvisited {
+  opacity: 0.45;
+  filter: grayscale(0.65) contrast(0.92);
+  box-shadow: inset 0 0 0 100px rgba(15, 23, 42, 0.08);
+}
+
+.social-login-btn.social-unvisited:hover {
+  opacity: 0.8;
+  filter: grayscale(0.2);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.social-used-badge {
+  position: absolute;
+  right: 12px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.12);
+  color: inherit;
+  pointer-events: none;
+}
+
+.social-google .social-used-badge {
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+/* 濡쒓렇???꾨즺 ?곹깭 移대뱶 */
+.auth-account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+}
+
+.auth-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.auth-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #15803d;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.auth-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+.auth-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+}
+
+.auth-provider-badge.provider-google {
+  background: #ffffff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.auth-provider-badge.provider-kakao {
+  background: #FEE500;
+  color: #191919;
+  border-color: #eab308;
+}
+
+.auth-provider-badge.provider-naver {
+  background: #03C75A;
+  color: #ffffff;
+  border-color: #02b351;
+}
+
+.auth-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.auth-avatar-box {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.auth-avatar-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.auth-profile-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.auth-user-name {
+  font-size: 1.08rem;
+  font-weight: 800;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-user-email {
+  font-size: 0.84rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auth-sync-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.auth-sync-note .material-symbols-outlined {
+  color: #2563eb;
+}
+
+.auth-logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 46px;
+  border-radius: 12px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #e11d48;
+  font-family: var(--font-main);
+  font-size: 0.92rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.auth-logout-btn:hover {
+  background: #ffe4e6;
+  border-color: #fda4af;
+}
+
+.auth-logout-btn:active {
+  transform: scale(0.99);
+}
+
+/* ?곷떒 ?ㅻ뜑 濡쒓렇???뚮옯??誘몃땲 ???쒖떆 */
+.header-provider-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.header-provider-chip.provider-google {
+  background: #ffffff;
+  color: #4285F4;
+  border: 1px solid #cbd5e1;
+}
+
+.header-provider-chip.provider-kakao {
+  background: #FEE500;
+  color: #191919;
+}
+
+.header-provider-chip.provider-naver {
+  background: #03C75A;
+  color: #ffffff;
+}
+
+/* ?좊땲硫붿씠??Keyframes */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -988,7 +1331,7 @@ body {
   }
 }
 
-/* 반응형 미디어 쿼리 */
+/* 諛섏쓳??誘몃뵒??荑쇰━ */
 @media (max-width: 600px) {
   .user-profile-box {
     padding: 8px 12px;

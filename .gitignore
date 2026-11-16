@@ -2,8 +2,8 @@ node_modules/
 dist/
 build/
 out/
+test-results/
 .env
 .env.*
 .DS_Store
 Thumbs.db
-open-test-server.bat

@@ -20,7 +20,8 @@ const KANA_MAP = {
   "わ": "wa", "を": "wo", "ん": "n"
 };
 
-const targetDir = 'c:/git/html/small-project/CharQuiz/assets/audio/ja';
+// 스크립트 위치 기준 경로 (저장소를 어디로 옮겨도 동작)
+const targetDir = path.resolve(__dirname, '..', 'assets', 'audio', 'ja');
 if (!fs.existsSync(targetDir)) {
   fs.mkdirSync(targetDir, { recursive: true });
 }

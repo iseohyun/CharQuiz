@@ -4,12 +4,13 @@
  */
 
 import { messaging } from './firebase-config.js';
+import { ENDPOINTS, FCM_VAPID_KEY } from './app-config.js';
 import { getToken } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging.js";
 
 let fcmToken = null;
 
-// 백엔드 Cloud Run 엔드포인트 베이스 URL
-const CLOUD_RUN_BASE_URL = "https://schedulenotification-kw55rtsoba-uc.a.run.app";
+// 백엔드 Cloud Run 엔드포인트 (app-config.js 에서 관리)
+const CLOUD_RUN_BASE_URL = ENDPOINTS.scheduleNotification;
 
 /**
  * 브라우저 푸시 알림 권한 요청 및 FCM 토큰 수급
@@ -34,7 +35,7 @@ export async function requestNotificationPermission() {
 
       fcmToken = await getToken(messaging, {
         serviceWorkerRegistration: readyRegistration,
-        vapidKey: 'BCsz-FURaLXuyEgWJ5opmzZ2bk8oBACk7pGXouwVF71PlrK-XA-z95QuGNBPqHCi9ppaUD66UGQ79bf2ozcqjpg'
+        vapidKey: FCM_VAPID_KEY
       });
       console.log('FCM Token 갱신 완료:', fcmToken);
       return fcmToken;

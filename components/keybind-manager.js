@@ -284,6 +284,9 @@ export function registerGlobalKeybindings(userConfig, callbacks) {
     // 퀴즈 화면이 아닐 때 (메인화면인 경우) 단축키 설정
     if (!optionsContainer) {
       if (document.querySelector('.modal-overlay')) return;
+      // 관전 모드처럼 #options 가 없는 세션 화면에서도 메인 단축키(Q/W/E, 1~5)가 동작하지 않도록,
+      // 모드 선택 카드가 실제로 보이는 메인 화면에서만 처리한다.
+      if (!document.getElementById('mode-selection-layer')) return;
 
       if (matchKey(e, bindings.toggleDomain)) {
         e.preventDefault();

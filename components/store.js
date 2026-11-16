@@ -34,6 +34,20 @@ export const userConfig = {
 export const TIME_STEPS = [20, 30, 40, 50, 60, 90];
 export const SPEECH_STEPS = [0.5, 0.7, 0.85, 1.0, 1.5, 2.0];
 
+// 앱 기본 설정 스냅샷 (계정 전환 시 이전 사용자 설정이 남지 않도록 되돌릴 때 사용)
+const DEFAULT_USER_CONFIG = JSON.parse(JSON.stringify(userConfig));
+
+/**
+ * userConfig 를 기본값으로 되돌린다.
+ * 다른 모듈이 userConfig 객체 참조를 들고 있으므로(예: 전역 단축키) 새 객체로 바꾸지 않고 내용만 교체한다.
+ */
+export function resetUserConfig() {
+  Object.keys(userConfig).forEach((key) => {
+    if (!(key in DEFAULT_USER_CONFIG)) delete userConfig[key];
+  });
+  Object.assign(userConfig, JSON.parse(JSON.stringify(DEFAULT_USER_CONFIG)));
+}
+
 window.updateTimeFromSlider = updateTimeFromSlider;
 window.updateSpeechFromSlider = updateSpeechFromSlider;
 

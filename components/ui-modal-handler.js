@@ -6,6 +6,7 @@
 import { getAllProgress } from './db-handler.js';
 import { ALPHABETS, INTERVALS } from './engine.js';
 import { userConfig } from './store.js';
+import { getRecentLocalDateKeys } from './date-utils.js';
 
 let analysisMode = 'default';
 
@@ -63,12 +64,7 @@ export function renderStudyStatsChart(stats) {
   const totalMinRounded = Math.round((stats?.total || 0) / 60);
   if (totalDisplay) totalDisplay.innerText = `${totalMinRounded}분`;
 
-  const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    days.push(d.toISOString().split('T')[0]);
-  }
+  const days = getRecentLocalDateKeys(7);
 
   const maxSec = Math.max(...days.map(d => stats?.history?.[d] || 0), 1);
 
