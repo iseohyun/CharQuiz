@@ -625,8 +625,24 @@ body {
   font-weight: 700;
 }
 
+.setting-notify-status[data-state="default"],
 .setting-notify-status[data-state="denied"],
 .setting-notify-status[data-state="failed"] {
+  color: #dc2626;
+}
+
+.setting-notify-last {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #64748b;
+  text-align: right;
+}
+
+.setting-notify-last[hidden] {
+  display: none;
+}
+
+.setting-notify-last[data-ok="false"] {
   color: #dc2626;
 }
 

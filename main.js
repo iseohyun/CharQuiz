@@ -67,7 +67,8 @@ import {
   initNotificationToken,
   getNotificationState,
   requestNotificationPermission,
-  scheduleReviewNotification
+  scheduleReviewNotification,
+  getLastReminderResult
 } from './components/notification-handler.js';
 import { startUpdateChecker } from './components/update-checker.js';
 import {
@@ -675,6 +676,14 @@ async function terminateQuizSession() {
 
   resetToMainModeSelection();
 
+  // 복습 알림 예약은 Firestore 저장과 따로 먼저 시작한다.
+  // 연결이 나쁘면 Firestore 저장이 끝나지 않고 멈춰 있어, 그 뒤에 두면 예약 요청이 아예 나가지 않는다.
+  const nextTargetStage = Math.min(...currentPool.map(p => p.stage));
+  const reminderDelayMin = INTERVALS[nextTargetStage] || 10;
+  if (userConfig.reviewReminder !== false) {
+    scheduleReviewNotification(userConfig.currentDomain, reminderDelayMin);
+  }
+
   try {
     await saveSessionPoolState(userConfig.currentDomain, currentPool);
     console.log("세션 풀 스트릭 데이터 일괄 동기화 완료.");
@@ -692,10 +701,6 @@ async function terminateQuizSession() {
       await updateDailyStats(avgAll, avgR10, avgR5);
     }
 
-    const nextTargetStage = Math.min(...currentPool.map(p => p.stage));
-    const delayMin = INTERVALS[nextTargetStage] || 10;
-
-    await scheduleReviewNotification(userConfig.currentDomain, delayMin);
     updateReviewCountBadge();
 
     const correctCount = correctLogs.length;
@@ -1345,35 +1350,78 @@ window.toggleDomain = function () {
 };
 
 const NOTIFICATION_STATUS_TEXT = {
+  off: '받지 않음',
   granted: '켜짐',
-  default: '꺼짐',
+  default: '알림 권한이 필요합니다',
   denied: '차단됨 · 기기 설정에서 허용해 주세요',
   'ios-install-required': '홈 화면에 추가한 앱에서 켤 수 있습니다',
   unsupported: '이 브라우저는 지원하지 않습니다',
   failed: '켜지 못했습니다 · 다시 시도해 주세요'
 };
 
+const REMINDER_FAIL_TEXT = {
+  token: '알림 서버에 연결하지 못함',
+  server: '예약 서버 오류',
+  network: '예약 서버에 연결하지 못함'
+};
+
 /**
- * 설정 모달의 「복습 알림」 줄: 현재 상태를 보여 주고, 버튼을 누를 때만 권한을 요청한다.
+ * 마지막 복습 알림 예약 결과 한 줄. 예약이 조용히 실패해도 설정 화면에서 알 수 있게 한다.
+ */
+function renderLastReminder(el) {
+  const last = getLastReminderResult();
+  if (!el || !last) return;
+  const fmt = (ms) => new Date(ms).toLocaleString([], { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  el.textContent = last.ok
+    ? `마지막 예약: ${fmt(last.dueAt)} 알림 예정`
+    : `마지막 예약 실패 (${fmt(last.at)}) · ${REMINDER_FAIL_TEXT[last.reason] || '알 수 없는 오류'}`;
+  el.dataset.ok = String(last.ok);
+  el.hidden = false;
+}
+
+/**
+ * 설정 모달의 「복습 알림」 줄.
+ * - 체크박스: 복습 알림을 받을지(userConfig.reviewReminder). 끄면 이후 복습을 마쳐도 예약하지 않는다.
+ * - 권한 허용 버튼: 받기로 했는데 권한이 아직 없을 때만 보인다. 권한 요청은 사용자가 누를 때만 한다.
  */
 function bindNotificationSetting(root) {
   const statusEl = root.querySelector('#notify-status');
   const btn = root.querySelector('#btn-notify-enable');
-  if (!statusEl || !btn) return;
+  const toggle = root.querySelector('#review-reminder');
+  const lastEl = root.querySelector('#notify-last');
+  if (!statusEl || !btn || !toggle) return;
+
+  const askPermission = async () => {
+    // 사용자 동작 안에서 곧바로 권한을 요청해야 아이폰 홈 화면 앱에서도 권한 창이 뜬다
+    const token = await requestNotificationPermission();
+    render(!token && getNotificationState() === 'granted' ? 'failed' : undefined);
+  };
 
   const render = (override) => {
-    const state = getNotificationState();
-    statusEl.textContent = NOTIFICATION_STATUS_TEXT[override || state] || '';
-    statusEl.dataset.state = override || state;
-    btn.hidden = state !== 'default' && override !== 'failed';
+    const enabled = userConfig.reviewReminder !== false;
+    const state = enabled ? (override || getNotificationState()) : 'off';
+    toggle.checked = enabled;
+    statusEl.textContent = NOTIFICATION_STATUS_TEXT[state] || '';
+    statusEl.dataset.state = state;
+    btn.hidden = !(enabled && (state === 'default' || state === 'failed'));
+    if (lastEl) {
+      lastEl.hidden = true;
+      if (enabled) renderLastReminder(lastEl);
+    }
   };
+
+  toggle.addEventListener('change', () => {
+    userConfig.reviewReminder = toggle.checked;
+    saveUserConfig(userConfig);
+    render();
+    // 켜는 순간 권한이 아직 없으면 같은 동작 안에서 바로 묻는다
+    if (toggle.checked && getNotificationState() === 'default') askPermission();
+  });
 
   btn.addEventListener('click', async () => {
     btn.disabled = true;
-    // 사용자 동작 안에서 곧바로 권한을 요청해야 아이폰 홈 화면 앱에서도 권한 창이 뜬다
-    const token = await requestNotificationPermission();
+    await askPermission();
     btn.disabled = false;
-    render(!token && getNotificationState() === 'granted' ? 'failed' : undefined);
   });
 
   render();

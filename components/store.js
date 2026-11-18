@@ -7,6 +7,7 @@ export const userConfig = {
   learningTime: 60,
   MAX_POOL_SIZE: 10,
   autoProgress: true,
+  reviewReminder: true, // 복습 알림 예약 여부 (설정 화면에서 끄고 켠다)
   speechRate: 0.85,
   currentDomain: 'hira',
   errorFeedbackMode: 'both',

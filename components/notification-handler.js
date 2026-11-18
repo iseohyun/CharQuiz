@@ -14,6 +14,9 @@ import { getToken } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-mes
 
 let fcmToken = null;
 
+const LAST_REMINDER_KEY = 'CHARQUIZ_LAST_REMINDER';
+const SCHEDULE_TIMEOUT_MS = 15000;
+
 // 백엔드 Cloud Run 엔드포인트 (app-config.js 에서 관리)
 const CLOUD_RUN_BASE_URL = ENDPOINTS.scheduleNotification;
 
@@ -94,7 +97,12 @@ export async function scheduleReviewNotification(domain, delayMinutes) {
   if (!fcmToken) {
     await acquireToken();
     if (!fcmToken) {
-      console.log('[Notify] 알림이 꺼져 있어 복습 알림을 예약하지 않습니다.');
+      if (getNotificationState() === 'granted') {
+        // 권한은 켜져 있는데 토큰을 못 받았다 = 구글 알림 서버에 닿지 못했다
+        recordReminderResult({ ok: false, reason: 'token' });
+      } else {
+        console.log('[Notify] 알림이 꺼져 있어 복습 알림을 예약하지 않습니다.');
+      }
       return;
     }
   }
@@ -112,6 +120,8 @@ export async function scheduleReviewNotification(domain, delayMinutes) {
     const response = await fetch(CLOUD_RUN_BASE_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      // 연결이 멈춘 채로 끝나지 않는 일을 막는다
+      signal: AbortSignal.timeout(SCHEDULE_TIMEOUT_MS),
       body: JSON.stringify({
         token: fcmToken,
         title: '🧠 뇌과학 복습 타이머 가동!',
@@ -122,10 +132,36 @@ export async function scheduleReviewNotification(domain, delayMinutes) {
 
     if (response.ok) {
       console.log(`[알림 예약] ${delayMinutes}분 뒤 복습 푸시 큐 등록 완료 (예정 시각: ${displayTime})`);
+      recordReminderResult({ ok: true, dueAt: targetDate.getTime() });
     } else {
-      console.error('서버 에러 응답:', await response.text());
+      console.error('[Notify] 예약 서버 에러 응답:', response.status, await response.text());
+      recordReminderResult({ ok: false, reason: 'server' });
     }
   } catch (error) {
-    console.error('푸시 알림 예약 서버 통신 실패:', error);
+    console.error('[Notify] 푸시 알림 예약 서버 통신 실패:', error);
+    recordReminderResult({ ok: false, reason: 'network' });
+  }
+}
+
+/**
+ * 마지막 예약 결과를 남긴다. 설정 화면에서 보여 주어, 예약이 조용히 실패해도 알 수 있게 한다.
+ * @param {{ok: boolean, dueAt?: number, reason?: 'token'|'server'|'network'}} result
+ */
+function recordReminderResult(result) {
+  if (!result.ok) console.warn('[Notify] 복습 알림 예약 실패:', result.reason);
+  try {
+    localStorage.setItem(LAST_REMINDER_KEY, JSON.stringify({ ...result, at: Date.now() }));
+  } catch (_) { /* 저장소를 못 쓰는 환경에서는 기록만 생략 */ }
+}
+
+/**
+ * 마지막 복습 알림 예약 결과. 기록이 없으면 null.
+ * @returns {{ok: boolean, at: number, dueAt?: number, reason?: string}|null}
+ */
+export function getLastReminderResult() {
+  try {
+    return JSON.parse(localStorage.getItem(LAST_REMINDER_KEY) || 'null');
+  } catch (_) {
+    return null;
   }
 }
