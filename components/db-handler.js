@@ -705,54 +705,6 @@ export const getStudyRankings = async (limitCount = 10, targetDomain = 'all') =>
 export const getCurrentUserUid = () => currentUserUid;
 
 /**
- * 사용자 건의사항 등록/수정
- */
-export const submitSuggestion = async (text) => {
-  if (!currentUserUid) return;
-
-  const docRef = doc(db, 'suggestions', currentUserUid);
-  const docSnap = await getDoc(docRef);
-  const existingData = docSnap.exists() ? docSnap.data() : {};
-
-  const suggestionHistory = existingData.suggestionHistory || [];
-  suggestionHistory.push({
-    text: text,
-    timestamp: Date.now()
-  });
-
-  let displayName = "게스트";
-  let email = "";
-  if (auth && auth.currentUser) {
-    displayName = auth.currentUser.displayName || "이름 없음";
-    email = auth.currentUser.email || "";
-  } else {
-    displayName = localStorage.getItem('GUEST_ID') || "게스트";
-  }
-
-  await setDoc(docRef, {
-    uid: currentUserUid,
-    name: displayName,
-    email: email,
-    suggestion: text,
-    suggestionHistory: suggestionHistory,
-    reply: existingData.reply || "",
-    updatedAt: Date.now()
-  }, { merge: true });
-};
-
-/**
- * 사용자 자신의 건의사항 및 답변 가져오기
- */
-export const getUserSuggestion = async () => {
-  if (!currentUserUid) return null;
-
-  const docRef = doc(db, 'suggestions', currentUserUid);
-  const docSnap = await getDoc(docRef);
-  return docSnap.exists() ? docSnap.data() : null;
-};
-
-
-/**
  * 이 기기에 저장된 게스트 ID 조회 (없으면 null, 새로 만들지 않음)
  */
 export const getStoredGuestId = () => localStorage.getItem('GUEST_ID');

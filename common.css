@@ -1509,3 +1509,20 @@ body {
     border-radius: var(--radius-lg);
   }
 }
+
+/* 앱 화면의 글자를 누르거나 길게 눌러도 선택되지 않게 한다.
+   설치한 앱에서 글자가 선택되면 Chrome의 「탭하여 검색」 서랍(「검색 결과를 보려면 탭하세요」)이 아래에서 올라온다.
+   글을 입력하는 칸은 그대로 선택할 수 있다. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

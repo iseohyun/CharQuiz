@@ -46,7 +46,6 @@ import {
   updateVisualBadges,
   registerGlobalKeybindings
 } from './components/keybind-manager.js';
-import { bindSuggestionEvents } from './components/suggestion-handler.js';
 import {
   initSessionPool,
   generateFourOptions,
@@ -1567,10 +1566,6 @@ async function openRemoteModalPopup(viewName, options = {}) {
       } catch (err) {
         console.error("[Leaderboard] 랭킹 데이터 조회 및 렌더링 실패:", err);
       }
-    }
-
-    if (viewName === 'help') {
-      await bindSuggestionEvents(overlay);
     }
 
     if (viewName === 'login') {
