@@ -174,8 +174,11 @@ exports.sendInstantNotification = onRequest(
     async (req, res) => {
       try {
         const {token, title, body} = req.body;
+        // notification 필드를 쓰면 Firebase SDK가 알림을 따로 띄워 서비스 워커 알림과 2개가 되고,
+        // 아이콘·묶음(tag)도 지정할 수 없다. 데이터로만 보내고 표시는 앱(서비스 워커/열린 화면)이 맡는다.
         const message = {
-          notification: {title, body},
+          data: {title: String(title || ""), body: String(body || "")},
+          webpush: {headers: {Urgency: "high"}},
           token: token,
         };
         const response = await admin.messaging().send(message);

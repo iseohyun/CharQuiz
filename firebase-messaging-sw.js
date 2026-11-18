@@ -31,8 +31,10 @@ messaging.onBackgroundMessage((payload) => {
   console.log('[Service Worker] 백그라운드 푸시 수신:', payload);
 
   const notificationTitle = payload?.notification?.title || payload?.data?.title || '🧠 CharQuiz 복습 알림';
+  // 앱이 열려 있을 때 쓰는 components/notification-handler.js 의 showReviewNotification 과 모양을 맞춘다
   const notificationOptions = {
     body: payload?.notification?.body || payload?.data?.body || '지금이 복습하기 가장 좋은 타이밍입니다!',
+    icon: new URL('icon-192.png', self.registration.scope).href,
     tag: 'review-reminder',
     renotify: true
   };

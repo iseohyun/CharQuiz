@@ -10,9 +10,10 @@
 
 import { messaging } from './firebase-config.js';
 import { ENDPOINTS, FCM_VAPID_KEY } from './app-config.js';
-import { getToken } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging.js";
+import { getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging.js";
 
 let fcmToken = null;
+let foregroundListenerBound = false;
 
 const LAST_REMINDER_KEY = 'CHARQUIZ_LAST_REMINDER';
 const SCHEDULE_TIMEOUT_MS = 15000;
@@ -55,11 +56,41 @@ async function acquireToken() {
       vapidKey: FCM_VAPID_KEY
     });
     console.log('[Notify] FCM 토큰 준비 완료');
+    bindForegroundMessages();
     return fcmToken;
   } catch (error) {
     console.error('[Notify] 푸시 알림 토큰 획득 실패:', error);
     return null;
   }
+}
+
+/**
+ * 앱이 화면에 떠 있으면 Firebase는 알림을 띄우지 않고 메시지를 이 화면으로 넘긴다.
+ * 받는 곳이 없으면 메시지가 버려지므로, 여기서 받아 서비스 워커와 같은 모양의 알림으로 띄운다.
+ */
+function bindForegroundMessages() {
+  if (foregroundListenerBound) return;
+  foregroundListenerBound = true;
+  onMessage(messaging, (payload) => {
+    showReviewNotification(payload).catch((error) => {
+      console.error('[Notify] 앱 화면에서 알림 표시 실패:', error);
+    });
+  });
+}
+
+/**
+ * firebase-messaging-sw.js 의 onBackgroundMessage 와 같은 제목·본문·아이콘·tag 로 알림을 띄운다.
+ * @param {{notification?: {title?: string, body?: string}, data?: {title?: string, body?: string}}} payload
+ */
+async function showReviewNotification(payload) {
+  const registration = await navigator.serviceWorker.ready;
+  const title = payload?.notification?.title || payload?.data?.title || '🧠 CharQuiz 복습 알림';
+  await registration.showNotification(title, {
+    body: payload?.notification?.body || payload?.data?.body || '지금이 복습하기 가장 좋은 타이밍입니다!',
+    icon: new URL('icon-192.png', registration.scope).href,
+    tag: 'review-reminder',
+    renotify: true
+  });
 }
 
 /**
