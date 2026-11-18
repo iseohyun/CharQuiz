@@ -64,6 +64,8 @@ import {
   renderLeaderboardUI
 } from './components/ui-modal-handler.js';
 import {
+  initNotificationToken,
+  getNotificationState,
   requestNotificationPermission,
   scheduleReviewNotification
 } from './components/notification-handler.js';
@@ -175,8 +177,8 @@ let srCorrectCount = 0;
 window.addEventListener('load', initApp);
 
 async function initApp() {
-  // 웹 푸시 알림 기본 권한 획득 처리
-  requestNotificationPermission();
+  // 웹 푸시 알림: 이미 허용된 경우에만 토큰을 조용히 받는다. 권한 요청은 설정의 「알림 켜기」 버튼에서만 한다.
+  initNotificationToken();
 
   // 오디오 엔진 초기화
   const audioReady = await initAudioEngine();
@@ -1338,6 +1340,41 @@ window.toggleDomain = function () {
   updateReviewCountBadge();
 };
 
+const NOTIFICATION_STATUS_TEXT = {
+  granted: '켜짐',
+  default: '꺼짐',
+  denied: '차단됨 · 기기 설정에서 허용해 주세요',
+  'ios-install-required': '홈 화면에 추가한 앱에서 켤 수 있습니다',
+  unsupported: '이 브라우저는 지원하지 않습니다',
+  failed: '켜지 못했습니다 · 다시 시도해 주세요'
+};
+
+/**
+ * 설정 모달의 「복습 알림」 줄: 현재 상태를 보여 주고, 버튼을 누를 때만 권한을 요청한다.
+ */
+function bindNotificationSetting(root) {
+  const statusEl = root.querySelector('#notify-status');
+  const btn = root.querySelector('#btn-notify-enable');
+  if (!statusEl || !btn) return;
+
+  const render = (override) => {
+    const state = getNotificationState();
+    statusEl.textContent = NOTIFICATION_STATUS_TEXT[override || state] || '';
+    statusEl.dataset.state = override || state;
+    btn.hidden = state !== 'default' && override !== 'failed';
+  };
+
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    // 사용자 동작 안에서 곧바로 권한을 요청해야 아이폰 홈 화면 앱에서도 권한 창이 뜬다
+    const token = await requestNotificationPermission();
+    btn.disabled = false;
+    render(!token && getNotificationState() === 'granted' ? 'failed' : undefined);
+  });
+
+  render();
+}
+
 /**
  * view/ 디렉터리의 조각 HTML을 원격 수급하여 모달 창에 주입하는 핵심 엔진
  */
@@ -1518,6 +1555,8 @@ async function openRemoteModalPopup(viewName, options = {}) {
           preloadSessionVoices(currentPool);
         });
       }
+
+      bindNotificationSetting(overlay);
 
       const btnErrorShow = document.getElementById('btn-error-show');
       const btnErrorAudio = document.getElementById('btn-error-audio');

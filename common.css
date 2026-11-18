@@ -547,6 +547,58 @@ body {
   /* Chrome, Safari, Opera */
 }
 
+/* 설정 모달: 복습 알림 줄 (상태 문구 + 알림 켜기 버튼) */
+.setting-notify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.setting-notify-ctrl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  text-align: right;
+}
+
+.setting-notify-status {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.setting-notify-status[data-state="granted"] {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.setting-notify-status[data-state="denied"],
+.setting-notify-status[data-state="failed"] {
+  color: #dc2626;
+}
+
+.setting-notify-btn {
+  padding: 4px 10px;
+  border: none;
+  border-radius: 4px;
+  background: #ec4899;
+  color: #ffffff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.setting-notify-btn[hidden] {
+  display: none;
+}
+
+.setting-notify-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
 .modal-body h1 {
   font-size: 1.25rem;
   margin-top: 0;

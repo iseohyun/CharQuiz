@@ -193,11 +193,14 @@ exports.scheduleNotification = onRequest(
       try {
         const {token, title, body, scheduleTime} = req.body;
         const project = process.env.GCLOUD_PROJECT;
-        const location = "asia-northeast3";
+        // 예약 큐는 서울(asia-northeast3)에 있지만, 함수는 지역을 지정하지 않아 기본 지역(us-central1)에 배포된다.
+        // 발송 주소를 큐의 지역으로 만들면 404가 나서 알림이 가지 않으므로 두 지역을 따로 둔다.
+        const queueLocation = "asia-northeast3";
+        const functionRegion = "us-central1";
         const queue = "notification-queue";
-        const url = `https://${location}-${project}.cloudfunctions.net/sendInstantNotification`;
+        const url = `https://${functionRegion}-${project}.cloudfunctions.net/sendInstantNotification`;
 
-        const queuePath = tasksClient.queuePath(project, location, queue);
+        const queuePath = tasksClient.queuePath(project, queueLocation, queue);
         const task = {
           httpRequest: {
             httpMethod: "POST",
