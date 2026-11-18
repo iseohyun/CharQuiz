@@ -69,6 +69,7 @@ import {
   requestNotificationPermission,
   scheduleReviewNotification
 } from './components/notification-handler.js';
+import { startUpdateChecker } from './components/update-checker.js';
 import {
   initAuthObserver,
   getActiveAuthProvider,
@@ -179,6 +180,9 @@ window.addEventListener('load', initApp);
 async function initApp() {
   // 웹 푸시 알림: 이미 허용된 경우에만 토큰을 조용히 받는다. 권한 요청은 설정의 「알림 켜기」 버튼에서만 한다.
   initNotificationToken();
+
+  // 새 판 감지: 설치한 앱은 스스로 다시 불러오지 않으므로 서버의 판을 확인해 안내한다
+  startUpdateChecker();
 
   // 오디오 엔진 초기화
   const audioReady = await initAudioEngine();
