@@ -10,3 +10,4 @@
 | :--- | :--- | :--- | :--- | :--- |
 | install | v0.5.6 | 적용 | 2026-11-18 | 판을 거치지 않고 먼저 가져옴. 매니페스트·아이콘 3종 |
 | update-notice | v0.5.6 | 적용 | 2026-11-18 | 판을 거치지 않고 먼저 가져옴. `components/update-checker.js` |
+| push | v0.5.7 | 적용 | 2026-11-18 | 이 앱에서 만든 규칙. `components/notification-handler.js`, `firebase-messaging-sw.js`, `functions/index.js` |
