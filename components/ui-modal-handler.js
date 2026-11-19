@@ -412,7 +412,7 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
     }
     const safeName = escapeHtml(displayName);
 
-    const domainDisplay = escapeHtml(domainMap[entry.domain] || entry.domain || '');
+    const domainDisplay = escapeHtml(String(entry.domain || '').split('+').map((d) => domainMap[d] || d).join('+'));
     const safeElapsed = escapeHtml(entry.elapsedStr || '-');
     const safeUpdatedAt = escapeHtml(entry.updatedAt || '');
 

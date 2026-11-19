@@ -163,6 +163,51 @@ let currentMode = 'study'; // 'study', 'record'(20문제), 'timeattack'(30초), 
 const SPEEDRUN_MAX_QUESTIONS = 20;
 const TIME_ATTACK_SECONDS = 30;
 let sessionStartSnapshot = {}; // 학습 시작 때 글자별 {stage, hadHistory, avgBefore}
+
+/**
+ * 언어 묶음. 헤더의 글자 단추는 묶음을 차례로 돌고(일본어 → 한국어 → 영어), 요약 카드에서는 묶음 안의 범위를 여럿 고른다.
+ */
+const DOMAIN_GROUPS = [
+  { key: 'summary.lang.ja', domains: ['hira', 'kata'] },
+  { key: 'summary.lang.ko', domains: ['hangle'] },
+  { key: 'summary.lang.en', domains: ['ENGLISH', 'english'] }
+];
+
+/** 여러 범위를 한 풀에 넣을 때 글자 ID 가 겹치지 않도록 범위 순서마다 더하는 값 */
+const DOMAIN_ID_STRIDE = 1000;
+
+function getDomainGroup(domain) {
+  return DOMAIN_GROUPS.find((g) => g.domains.includes(domain)) || DOMAIN_GROUPS[0];
+}
+
+/**
+ * 지금 고른 범위들. 지금 도메인과 같은 묶음 안의 것만, 묶음 순서대로. 비면 지금 도메인 하나.
+ * @returns {string[]}
+ */
+function getActiveDomains() {
+  const group = getDomainGroup(userConfig.currentDomain);
+  const picked = Array.isArray(userConfig.activeDomains) ? userConfig.activeDomains : [];
+  const domains = group.domains.filter((d) => picked.includes(d));
+  return domains.length ? domains : [userConfig.currentDomain];
+}
+
+/** 범위 순서에 맞춰 글자 ID 를 풀 안에서만 쓰는 ID 로 바꾼다. 원래 ID 는 srcCharId 에 둔다. */
+function tagPoolItem(item, domain, domainIndex) {
+  return { ...item, domain, srcCharId: item.charId, charId: domainIndex * DOMAIN_ID_STRIDE + item.charId };
+}
+
+/** 풀을 범위별로 나눠 원래 글자 ID 로 저장한다. */
+function savePoolByDomain(items) {
+  const byDomain = new Map();
+  items.forEach((item) => {
+    const domain = item.domain || userConfig.currentDomain;
+    const restored = { ...item, charId: item.srcCharId ?? item.charId };
+    delete restored.srcCharId;
+    if (!byDomain.has(domain)) byDomain.set(domain, []);
+    byDomain.get(domain).push(restored);
+  });
+  return Promise.all([...byDomain].map(([domain, list]) => saveSessionPoolState(domain, list)));
+}
 let currentPool = [];
 let currentQuestion = null;
 let sessionHistory = [];
@@ -534,8 +579,18 @@ async function startQuizSession() {
   const historyBar = document.getElementById('history-bar');
   if (historyBar) historyBar.innerHTML = '';
 
-  const dbData = await getAllProgress(userConfig.currentDomain);
-  currentPool = initSessionPool(userConfig.currentDomain, dbData, userConfig.autoProgress, userConfig.MAX_POOL_SIZE);
+  // 여러 범위를 골랐으면 범위마다 몫을 나눠 풀을 만들고 합친다
+  const domains = getActiveDomains();
+  const perDomainSize = Math.max(4, Math.ceil(userConfig.MAX_POOL_SIZE / domains.length));
+  currentPool = [];
+  for (const [domainIndex, domain] of domains.entries()) {
+    const dbData = await getAllProgress(domain);
+    const pool = initSessionPool(domain, dbData, userConfig.autoProgress, perDomainSize);
+    currentPool.push(...pool.map((item) => tagPoolItem(item, domain, domainIndex)));
+  }
+  if (currentPool.length > userConfig.MAX_POOL_SIZE && domains.length > 1) {
+    currentPool = currentPool.sort(() => Math.random() - 0.5).slice(0, Math.max(userConfig.MAX_POOL_SIZE, 4));
+  }
 
   if (!currentPool || currentPool.length === 0) {
     alert("선택된 도메인에 출제 가능한 가나 후보군이 존재하지 않습니다.");
@@ -613,7 +668,7 @@ function bindQuizHintButton() {
     if (!target || isTimeUp) return;
     const pausedByHint = !isPaused;
     if (pausedByHint) window.pauseGameTrigger();
-    openHintListModal(userConfig.currentDomain, target.char, {
+    openHintListModal(target.domain || userConfig.currentDomain, target.char, {
       onClose: () => { if (pausedByHint && isPaused) window.pauseGameTrigger(); }
     });
   };
@@ -684,12 +739,10 @@ function updateTimerProgressBar(left, total) {
  * 랭킹 기록용 도메인 명칭 및 플레이어 이름 추출 헬퍼
  */
 function resolveRankingMetadata() {
-  let recordDomain = userConfig.currentDomain;
-  if (recordDomain.toLowerCase() === 'english' || recordDomain.toLowerCase() === 'alphabet') {
-    const sampleItem = currentPool.find(p => /[a-zA-Z]/.test(p.char));
-    const sampleChar = sampleItem ? sampleItem.char : 'A';
-    recordDomain = (sampleChar === sampleChar.toUpperCase()) ? 'english(A)' : 'english(a)';
-  }
+  // 순위 표의 영문은 대문자 english(A), 소문자 english(a)로 적는다. 여러 범위면 + 로 잇는다.
+  const recordDomain = getActiveDomains()
+    .map((domain) => (domain === 'ENGLISH' ? 'english(A)' : domain === 'english' ? 'english(a)' : domain))
+    .join('+');
 
   let playerName = document.getElementById('profile-name')?.innerText ||
     (auth.currentUser ? (auth.currentUser.displayName || "이름 없음") : (localStorage.getItem('GUEST_ID') || "게스트"));
@@ -727,7 +780,7 @@ async function terminateQuizSession() {
   }
 
   try {
-    await saveSessionPoolState(userConfig.currentDomain, currentPool);
+    await savePoolByDomain(currentPool);
     console.log("세션 풀 스트릭 데이터 일괄 동기화 완료.");
 
     const playedTime = Math.max(0, userConfig.learningTime - timeLeft);
@@ -866,16 +919,25 @@ function buildFullDomainPool(domain) {
  * 기록 모드(20문제·30초)가 쓰는 전체 글자 풀. 해금한 글자만 진도를 고친다.
  */
 async function buildRecordPool() {
-  const dbData = await getAllProgress(userConfig.currentDomain);
-  const fullPool = buildFullDomainPool(userConfig.currentDomain);
+  const domains = getActiveDomains();
+  const pools = await Promise.all(domains.map(async (domain, domainIndex) => {
+    const items = await buildRecordPoolForDomain(domain);
+    return items.map((item) => tagPoolItem(item, domain, domainIndex));
+  }));
+  return pools.flat();
+}
+
+async function buildRecordPoolForDomain(domain) {
+  const dbData = await getAllProgress(domain);
+  const fullPool = buildFullDomainPool(domain);
   const now = Date.now();
   return fullPool.map(item => {
     const dbItem = dbData[item.charId.toString()];
-    if (!dbItem) return { ...item, isUnlocked: false };
+    if (!dbItem) return { ...item, domain, isUnlocked: false };
     const saved = toPersistedSchema(dbItem);
     return {
       ...saved,
-      domain: userConfig.currentDomain,
+      domain,
       charId: item.charId,
       char: item.char,
       stage: saved.stage || 0,
@@ -1007,7 +1069,7 @@ async function terminateTimeAttackSession() {
 
   try {
     const itemsToSave = currentPool.filter(item => item.isUnlocked && item.touched);
-    if (itemsToSave.length > 0) await saveSessionPoolState(userConfig.currentDomain, itemsToSave);
+    if (itemsToSave.length > 0) await savePoolByDomain(itemsToSave);
     await updateDailyStudyTime(playedSec, userConfig.currentDomain);
     if (finishedInTime && taSolvedCount > 0) {
       const { recordDomain, playerName } = resolveRankingMetadata();
@@ -1140,7 +1202,7 @@ async function terminateSpeedrunSession() {
     // 20문제 안에서 나온 글자만 진도를 고친다
     const itemsToSave = currentPool.slice(0, srTotalCount).filter(item => item.isUnlocked);
     if (itemsToSave.length > 0) {
-      await saveSessionPoolState(userConfig.currentDomain, itemsToSave);
+      await savePoolByDomain(itemsToSave);
       console.log(`스피드런 세션 해금 문자 진도 동기화 완료 (${itemsToSave.length}개)`);
     }
 
@@ -1166,31 +1228,32 @@ async function startSpectatorSession() {
   stopAllVoices();
   lastSpectatorCharId = null;
 
-  const dbData = await getAllProgress(userConfig.currentDomain);
-
   const allCharacters = [];
-  const rows = ALPHABETS[userConfig.currentDomain] || [];
-  let idCounter = 0;
-  for (const row of rows) {
-    for (const char of row) {
-      if (char !== '_') {
-        const saved = dbData[idCounter] || {};
-        allCharacters.push({
-          domain: userConfig.currentDomain,
-          charId: idCounter,
-          char,
-          stage: saved.stage !== undefined ? saved.stage : 0,
-          recentLatencies: saved.recentLatencies || [],
-          latenciesIdx: saved.latenciesIdx || 0,
-          outCnt: saved.outCnt || 0,
-          resetOutCnt: saved.resetOutCnt || 0,
-          totalSolved: saved.totalSolved || 0,
-          lastSessionTime: saved.lastSessionTime || 0,
-          sessionStreak: saved.sessionStreak || 0,
-          hasHistory: (saved.totalSolved || 0) > 0,
-          isEligibleForPromotion: false
-        });
-        idCounter++;
+  for (const [domainIndex, domain] of getActiveDomains().entries()) {
+    const dbData = await getAllProgress(domain);
+    const rows = ALPHABETS[domain] || [];
+    let idCounter = 0;
+    for (const row of rows) {
+      for (const char of row) {
+        if (char !== '_') {
+          const saved = dbData[idCounter] || {};
+          allCharacters.push({
+            domain,
+            charId: domainIndex * DOMAIN_ID_STRIDE + idCounter,
+            char,
+            stage: saved.stage !== undefined ? saved.stage : 0,
+            recentLatencies: saved.recentLatencies || [],
+            latenciesIdx: saved.latenciesIdx || 0,
+            outCnt: saved.outCnt || 0,
+            resetOutCnt: saved.resetOutCnt || 0,
+            totalSolved: saved.totalSolved || 0,
+            lastSessionTime: saved.lastSessionTime || 0,
+            sessionStreak: saved.sessionStreak || 0,
+            hasHistory: (saved.totalSolved || 0) > 0,
+            isEligibleForPromotion: false
+          });
+          idCounter++;
+        }
       }
     }
   }
@@ -1395,45 +1458,60 @@ function resetToMainModeSelection() {
   updateReviewCountBadge();
 }
 
-/** 처음 화면 요약 카드의 언어 묶음. 같은 묶음의 글자 종류를 나란히 보여 준다. */
-const DOMAIN_GROUPS = [
-  { key: 'summary.lang.ja', domains: ['hira', 'kata'] },
-  { key: 'summary.lang.ko', domains: ['hangle'] },
-  { key: 'summary.lang.en', domains: ['ENGLISH', 'english'] }
-];
-
 /**
- * 처음 화면의 학습범위 요약 카드. 언어 이름, 글자 종류(지금 것은 강조, 나머지는 음영), 해금한 글자 수.
- * 음영인 글자 종류를 누르면 그 종류로 바꾼다.
+ * 처음 화면의 학습범위 요약 카드. 언어 이름, 범위(고른 것은 강조, 나머지는 음영), 고른 범위의 해금한 글자 수.
+ * 범위를 누르면 고르거나 뺀다. 여러 개를 함께 고를 수 있고, 마지막 하나는 뺄 수 없다.
  */
 async function renderDomainSummary() {
   const card = document.getElementById('domain-summary');
   if (!card) return;
-  const domain = userConfig.currentDomain;
-  const group = DOMAIN_GROUPS.find((g) => g.domains.includes(domain)) || DOMAIN_GROUPS[0];
-  const total = getFlattenedDataset(domain).length;
+  const group = getDomainGroup(userConfig.currentDomain);
+  const activeDomains = getActiveDomains();
+  const renderKey = activeDomains.join('+');
+
+  let total = 0;
   let unlocked = 0;
-  try {
-    const progress = await getAllProgress(domain);
-    unlocked = Object.values(progress || {}).filter((p) => p && p.stage > 0).length;
-  } catch (error) {
-    console.warn('[Summary] 진도를 읽지 못했습니다:', error);
+  for (const domain of activeDomains) {
+    total += getFlattenedDataset(domain).length;
+    try {
+      const progress = await getAllProgress(domain);
+      unlocked += Object.values(progress || {}).filter((p) => p && p.stage > 0).length;
+    } catch (error) {
+      console.warn('[Summary] 진도를 읽지 못했습니다:', error);
+    }
   }
-  if (!card.isConnected || userConfig.currentDomain !== domain) return;
+  if (!card.isConnected || getActiveDomains().join('+') !== renderKey) return;
   const percent = total > 0 ? ((unlocked / total) * 100).toFixed(1) : '0.0';
 
   card.innerHTML = `
     <strong class="summary-lang">${t(group.key)}</strong>
     <div class="summary-domains">
-      ${group.domains.map((d) => `
-        <button type="button" class="summary-domain${d === domain ? ' active' : ''}" data-domain="${d}"
-          ${d === domain ? 'aria-current="true"' : ''}>${t(`summary.${d}`)}</button>`).join('')}
+      ${group.domains.map((d) => {
+        const on = activeDomains.includes(d);
+        return `<button type="button" class="summary-domain${on ? ' active' : ''}" data-domain="${d}"
+          aria-pressed="${on}">${t(`summary.${d}`)}</button>`;
+      }).join('')}
     </div>
     <p class="summary-count"><b>${unlocked} / ${total}</b> (${percent}%) ${t('summary.unlocked')}</p>
   `;
-  card.querySelectorAll('.summary-domain:not(.active)').forEach((btn) => {
-    btn.addEventListener('click', () => setDomain(btn.dataset.domain));
+  card.querySelectorAll('.summary-domain').forEach((btn) => {
+    btn.addEventListener('click', () => toggleActiveDomain(btn.dataset.domain));
   });
+}
+
+/** 요약 카드에서 범위 하나를 고르거나 뺀다. 지금 도메인(헤더 글자)은 고른 것 중 묶음의 첫 번째. */
+function toggleActiveDomain(domain) {
+  const active = getActiveDomains();
+  const next = active.includes(domain) ? active.filter((d) => d !== domain) : [...active, domain];
+  if (next.length === 0) return;
+  const group = getDomainGroup(domain);
+  userConfig.activeDomains = group.domains.filter((d) => next.includes(d));
+  userConfig.currentDomain = userConfig.activeDomains[0];
+  window.currentDomain = userConfig.currentDomain;
+  updateDomainUI();
+  saveUserConfig(userConfig);
+  renderDomainSummary();
+  updateReviewCountBadge();
 }
 
 /**
@@ -1610,12 +1688,12 @@ window.changeVoiceSource = (sourceVal) => {
 window.addEventListener('beforeunload', (event) => {
   if (timerInterval && !isTimeUp && currentPool.length > 0) {
     if (currentMode === 'study') {
-      saveSessionPoolState(userConfig.currentDomain, currentPool);
+      savePoolByDomain(currentPool);
       const playedTime = Math.max(0, userConfig.learningTime - timeLeft);
       updateDailyStudyTime(playedTime, userConfig.currentDomain);
     } else {
       const itemsToSave = currentPool.filter(item => item.isUnlocked);
-      if (itemsToSave.length > 0) saveSessionPoolState(userConfig.currentDomain, itemsToSave);
+      if (itemsToSave.length > 0) savePoolByDomain(itemsToSave);
       updateDailyStudyTime(srElapsedTime, userConfig.currentDomain);
     }
 
@@ -1646,15 +1724,16 @@ window.toggleDomain = function () {
     }
   }
 
-  const currentIndex = domains.indexOf(userConfig.currentDomain);
-  const nextIndex = (currentIndex + 1) % domains.length;
-  setDomain(domains[nextIndex]);
+  // 언어 묶음을 차례로 돈다: 일본어(히라가나) → 한국어 → 영어(대문자)
+  const groupIndex = DOMAIN_GROUPS.indexOf(getDomainGroup(userConfig.currentDomain));
+  setDomain(DOMAIN_GROUPS[(groupIndex + 1) % DOMAIN_GROUPS.length].domains[0]);
 };
 
 /** 글자 종류(도메인)를 바꾸고 처음 화면을 다시 그린다. */
 function setDomain(domain) {
   if (!ALPHABETS[domain]) return;
   userConfig.currentDomain = domain;
+  userConfig.activeDomains = [domain];
   window.currentDomain = userConfig.currentDomain;
 
   updateDomainUI();

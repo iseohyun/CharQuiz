@@ -146,9 +146,30 @@ export function initSessionPool(domain, dbData = {}, autoProgress = true, MAX_PO
   return pool;
 }
 
+/** 소리가 같은 가나 짝: ぢ=じ, づ=ず, を=お */
+const SAME_SOUND_KANA = { 'ぢ': 'じ', 'づ': 'ず', 'を': 'お' };
+
+/**
+ * 발음 비교용 열쇠. 가타카나는 히라가나로 바꾸고(ウ → う), 소리가 같은 가나는 하나로 모은다.
+ * 히라가나와 가타카나를 섞어 낼 때 「う」와 「ウ」가 함께 보기로 나와 답이 둘이 되는 것을 막는다.
+ */
+export function getSoundKey(char) {
+  const hira = String(char || '').replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
+  return SAME_SOUND_KANA[hira] || hira;
+}
+
 export function generateFourOptions(targetItem, currentPool) {
-  let distractors = currentPool.filter(item => item.charId !== targetItem.charId);
-  distractors = distractors.sort(() => Math.random() - 0.5).slice(0, 3);
+  // 정답과 소리가 같은 글자는 보기에서 빼고, 보기끼리도 소리가 겹치지 않게 고른다
+  const usedSounds = new Set([getSoundKey(targetItem.char)]);
+  const distractors = [];
+  for (const item of [...currentPool].sort(() => Math.random() - 0.5)) {
+    if (distractors.length >= 3) break;
+    if (item.charId === targetItem.charId) continue;
+    const sound = getSoundKey(item.char);
+    if (usedSounds.has(sound)) continue;
+    usedSounds.add(sound);
+    distractors.push(item);
+  }
   const options = [targetItem.charId, ...distractors.map(d => d.charId)].sort(() => Math.random() - 0.5);
   return { target: targetItem, options };
 }

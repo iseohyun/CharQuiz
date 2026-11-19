@@ -10,6 +10,7 @@ export const userConfig = {
   reviewReminder: true, // 복습 알림 예약 여부 (설정 화면에서 끄고 켠다)
   speechRate: 0.85,
   currentDomain: 'hira',
+  activeDomains: ['hira'], // 요약 카드에서 함께 고른 범위(같은 언어 묶음 안). 첫 번째가 currentDomain
   errorFeedbackMode: 'both',
   uiLanguage: 'ko', // 화면 언어: 'ko' | 'en' | 'ja' (components/i18n.js)
   spectatorInterval: 1, // 관전모드 출력 주기 (초)
