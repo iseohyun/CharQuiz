@@ -75,6 +75,11 @@
     </span>
   </div>
   <div class="setting-row">
+    <label class="setting-label" for="weather-theme" data-i18n="setting.weatherTheme">날씨 반영</label>
+    <input type="checkbox" id="weather-theme" class="setting-check" {{#if weatherTheme}}checked{{/if}}>
+  </div>
+  <p class="setting-hint" data-i18n="setting.weatherThemeHint">처음 화면의 계절 무대에 접속 위치(IP)로 짐작한 지금 날씨를 겹칩니다. 끄면 위치를 묻지 않습니다.</p>
+  <div class="setting-row">
     <span class="setting-label" data-i18n="setting.soundTest">소리 테스트</span>
     <button type="button" id="setting-sound-test" class="setting-play-btn">
       <span class="material-symbols-outlined" aria-hidden="true">volume_up</span>

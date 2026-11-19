@@ -2487,3 +2487,148 @@ textarea,
 #progress-table td {
   touch-action: manipulation;
 }
+
+/* 학습현황 맨 위 범위 단추(히라가나·가타카나, 대문자·소문자) */
+.progress-domain-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.progress-domain-tabs[hidden] {
+  display: none;
+}
+
+.progress-domain-tab {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  background: #f1f5f9;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.progress-domain-tab.active {
+  background: #ec4899;
+  border-color: #ec4899;
+  color: #ffffff;
+}
+
+/* 알림함 맨 위 QuizQuiz 자매품 링크 (components/sister-apps.js) */
+.sister-apps {
+  padding: 10px 12px 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.sister-apps-title {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.sister-apps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-bottom: 6px;
+}
+
+.sister-app {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.sister-app:hover {
+  background: #f8fafc;
+}
+
+.sister-app img {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  flex-shrink: 0;
+}
+
+.sister-app-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sister-app-text strong {
+  font-size: 0.88rem;
+}
+
+.sister-app-text small {
+  font-size: 0.72rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sister-app .material-symbols-outlined {
+  font-size: 1.1rem;
+  color: #94a3b8;
+}
+
+/* 처음 화면 요약 카드의 계절·날씨 무대 (components/letter-stage.js) */
+.mode-info-card.domain-summary {
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-info-card.domain-summary > :not(.letter-stage) {
+  position: relative;
+  z-index: 1;
+}
+
+.letter-stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.season-badge {
+  position: absolute !important;
+  top: 10px;
+  right: 10px;
+  z-index: 2 !important;
+  border: none;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #334155;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.setting-hint {
+  margin: 0;
+  padding: 0 14px 8px;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.45;
+  border-bottom: 1px solid #f1f5f9;
+}

@@ -320,7 +320,7 @@ export async function toggleAnalysisMode() {
   const btn = document.getElementById('btn-analysis');
   if (btn) btn.innerText = analysisMode === 'stage' ? "장기기억" : "응답속도";
 
-  const domain = userConfig.currentDomain;
+  const domain = window.progressViewDomain || userConfig.currentDomain;
   const currentDomainData = await getAllProgress(domain);
   renderProgressTable(domain, currentDomainData);
 }

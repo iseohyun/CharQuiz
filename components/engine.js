@@ -150,12 +150,13 @@ export function initSessionPool(domain, dbData = {}, autoProgress = true, MAX_PO
 const SAME_SOUND_KANA = { 'ぢ': 'じ', 'づ': 'ず', 'を': 'お' };
 
 /**
- * 발음 비교용 열쇠. 가타카나는 히라가나로 바꾸고(ウ → う), 소리가 같은 가나는 하나로 모은다.
+ * 발음 비교용 열쇠. 가타카나는 히라가나로 바꾸고(ウ → う), 소리가 같은 가나는 하나로 모으고, 영문은 소문자로 맞춘다.
  * 히라가나와 가타카나를 섞어 낼 때 「う」와 「ウ」가 함께 보기로 나와 답이 둘이 되는 것을 막는다.
  */
 export function getSoundKey(char) {
   const hira = String(char || '').replace(/[ァ-ヶ]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0x60));
-  return SAME_SOUND_KANA[hira] || hira;
+  // 영문은 대소문자를 같은 소리로 본다(A 와 a 는 둘 다 「에이」)
+  return (SAME_SOUND_KANA[hira] || hira).toLowerCase();
 }
 
 export function generateFourOptions(targetItem, currentPool) {

@@ -21,6 +21,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 import { ALPHABETS } from './engine.js';
 import { migrateLegacyStorage } from './storage-migration.js';
+import { claimLegacyData } from './legacy-migration.js';
 import { toLocalDateKey, getRecentLocalDateKeys } from './date-utils.js';
 
 // 내부 상주 변수 및 도메인별 다차원 메모리 캐시 구조화
@@ -111,6 +112,8 @@ export const initUser = async (uid) => {
 
   if (uid) {
     currentUserUid = uid;
+    // 이전 프로젝트(kana-loop)에서 옮겨 둔 기록이 있으면 먼저 이어 받는다
+    await claimLegacyData();
   } else {
     currentUserUid = _getOrCreateGuestId();
   }
@@ -441,7 +444,7 @@ export const submitSpeedrunRanking = async (domain, charCount, elapsedTime, accu
   }
 
   const docId = `${currentUserUid}_${domain}_${Date.now()}`;
-  const docRef = doc(db, 'speedrun_rankings', docId);
+  const docRef = doc(db, 'charquiz_speedrun_rankings', docId);
 
   await setDoc(docRef, {
     uid: currentUserUid,
@@ -460,7 +463,7 @@ export const submitSpeedrunRanking = async (domain, charCount, elapsedTime, accu
  * 글로벌 랭킹 리스트 탑다운 조회
  */
 export const getGlobalRankings = async (limitCount = 10, targetDomain = 'all') => {
-  const rankingsRef = collection(db, 'speedrun_rankings');
+  const rankingsRef = collection(db, 'charquiz_speedrun_rankings');
 
   let q = query(rankingsRef, orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount));
   if (targetDomain !== 'all') {
@@ -621,7 +624,7 @@ export const submitStudyRanking = async (domain, correctCount, elapsedTime, accu
   }
 
   const docId = `${currentUserUid}_${domain}`;
-  const docRef = doc(db, 'study_rankings', docId);
+  const docRef = doc(db, 'charquiz_study_rankings', docId);
 
   try {
     const docSnap = await getDoc(docRef);
@@ -664,7 +667,7 @@ export const submitStudyRanking = async (domain, correctCount, elapsedTime, accu
  * 학습 모드 글로벌 랭킹 리스트 조회
  */
 export const getStudyRankings = async (limitCount = 10, targetDomain = 'all') => {
-  const rankingsRef = collection(db, 'study_rankings');
+  const rankingsRef = collection(db, 'charquiz_study_rankings');
 
   let q = query(rankingsRef, orderBy('correctCount', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount));
   if (targetDomain !== 'all') {
@@ -807,7 +810,7 @@ export const submitTimeAttackRanking = async (domain, correctCount, solvedCount,
   }
 
   const docId = `${currentUserUid}_${domain}_${Date.now()}`;
-  await setDoc(doc(db, 'timeattack_rankings', docId), {
+  await setDoc(doc(db, 'charquiz_timeattack_rankings', docId), {
     uid: currentUserUid,
     name: displayName,
     domain,
@@ -825,7 +828,7 @@ export const submitTimeAttackRanking = async (domain, correctCount, solvedCount,
  * 복합 인덱스 없이 쓰도록 맞힌 수 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
  */
 export const getTimeAttackRankings = async (limitCount = 10, targetDomain = 'all') => {
-  const snapshot = await getDocs(query(collection(db, 'timeattack_rankings'), orderBy('correctCount', 'desc'), limit(300)));
+  const snapshot = await getDocs(query(collection(db, 'charquiz_timeattack_rankings'), orderBy('correctCount', 'desc'), limit(300)));
   const pad = (n) => n.toString().padStart(2, '0');
   return snapshot.docs
     .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))

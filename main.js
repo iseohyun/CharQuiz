@@ -78,6 +78,8 @@ import { UI_LANGUAGES, applyI18n, setLanguage, t } from './components/i18n.js';
 import { initNotificationInbox, openInboxModal, updateInboxBadge } from './components/notification-inbox.js';
 import { initSettingNewDot, hasUnseenVersion, markVersionSeen } from './components/new-dot.js';
 import { openHintListModal, renderHintHallOfFame } from './components/hint-handler.js';
+import { SEASONS, SEASON_META, WEATHER_META, getSeasonByDate, getApproxWeather } from './components/season-weather.js';
+import { startLetterStage } from './components/letter-stage.js';
 import {
   initAuthObserver,
   getActiveAuthProvider,
@@ -1497,6 +1499,44 @@ async function renderDomainSummary() {
   card.querySelectorAll('.summary-domain').forEach((btn) => {
     btn.addEventListener('click', () => toggleActiveDomain(btn.dataset.domain));
   });
+  renderSeasonStage(card, activeDomains);
+}
+
+/* ---------- 요약 카드 뒤의 계절·날씨 무대 ---------- */
+let summarySeason = getSeasonByDate();
+let summaryWeather = null;
+let weatherRequested = false;
+
+/** 계절 배지와 글자 무대를 그린다. 날씨는 처음 한 번만 받아 오고(1시간 저장), 받으면 다시 그린다. */
+function renderSeasonStage(card, domains) {
+  const chars = domains.flatMap((d) => getFlattenedDataset(d).map((item) => item.char));
+  const weather = userConfig.weatherTheme === false ? null : summaryWeather;
+  const seasonMeta = SEASON_META[summarySeason];
+  const weatherMeta = weather ? WEATHER_META[weather.kind] : null;
+  const weatherText = weatherMeta
+    ? ` · ${weather.isDay ? weatherMeta.icon : (weatherMeta.nightIcon || weatherMeta.icon)} ${weatherMeta.label}${weather.temp !== null ? ` ${weather.temp}°` : ''}`
+    : '';
+  card.querySelector('.season-badge')?.remove();
+  const badge = document.createElement('button');
+  badge.type = 'button';
+  badge.className = 'season-badge';
+  badge.title = '눌러서 계절 바꾸기';
+  badge.textContent = `${seasonMeta.icon} ${seasonMeta.label}${weatherText}`;
+  badge.addEventListener('click', (e) => {
+    e.stopPropagation();
+    summarySeason = SEASONS[(SEASONS.indexOf(summarySeason) + 1) % SEASONS.length];
+    renderSeasonStage(card, domains);
+  });
+  card.appendChild(badge);
+  startLetterStage(card, chars, { season: summarySeason, weather });
+
+  if (userConfig.weatherTheme !== false && !weatherRequested) {
+    weatherRequested = true;
+    getApproxWeather().then((value) => {
+      summaryWeather = value;
+      if (value && card.isConnected) renderSeasonStage(card, getActiveDomains());
+    });
+  }
 }
 
 /** 요약 카드에서 범위 하나를 고르거나 뺀다. 지금 도메인(헤더 글자)은 고른 것 중 묶음의 첫 번째. */
@@ -1856,6 +1896,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
         .replace('{{speechIdx}}', speechIdx)
         .replace('{{speechRate}}', userConfig.speechRate)
         .replace('{{#if autoProgress}}checked{{/if}}', userConfig.autoProgress ? 'checked' : '')
+        .replace('{{#if weatherTheme}}checked{{/if}}', userConfig.weatherTheme !== false ? 'checked' : '')
         .replace('{{languageOptions}}', () => UI_LANGUAGES.map((lang) => `<option value="${lang.code}">${lang.label}</option>`).join(''))
         .replace('{{keybindingsConfig}}', () => kbHtml);
     }
@@ -1959,12 +2000,11 @@ async function openRemoteModalPopup(viewName, options = {}) {
         observer.observe(document.body, { childList: true, subtree: true });
       });
 
-      const currentDomainData = await getAllProgress(userConfig.currentDomain);
-      await renderResponseTimeChart(userConfig.currentDomain);
-      renderProgressTable(userConfig.currentDomain, currentDomainData);
-
-      const currentWeeklyStats = await getWeeklyStats(userConfig.currentDomain);
-      renderStudyStatsChart(currentWeeklyStats || { total: 0, history: {} });
+      // 같은 언어의 범위가 여럿이면(히라가나·가타카나, 대문자·소문자) 위 단추로 페이지를 바꾼다.
+      // 처음에는 시험에 켜 둔 범위, 둘 다 켜져 있으면 앞의 것(히라가나, 대문자)
+      window.progressViewDomain = getActiveDomains()[0];
+      renderProgressDomainTabs(overlay);
+      await renderProgressView(window.progressViewDomain);
     }
 
     if (viewName === 'leaderboard') {
@@ -2130,6 +2170,11 @@ async function openRemoteModalPopup(viewName, options = {}) {
         userConfig.autoProgress = e.target.checked;
       });
 
+      document.getElementById('weather-theme')?.addEventListener('change', (e) => {
+        userConfig.weatherTheme = e.target.checked;
+        renderDomainSummary();
+      });
+
       document.getElementById('user-age')?.addEventListener('change', (e) => {
         userConfig.age = e.target.value || '미상';
       });
@@ -2184,6 +2229,37 @@ async function shareApp() {
 function startStudyFromInbox() {
   if (timerInterval && !isTimeUp) return;
   window.startSessionWorkflow?.('study');
+}
+
+/** 학습현황 한 페이지(범위 하나): 응답속도 분포, 글자 표, 주간 학습량 */
+async function renderProgressView(domain) {
+  const domainData = await getAllProgress(domain);
+  await renderResponseTimeChart(domain);
+  renderProgressTable(domain, domainData);
+  const weeklyStats = await getWeeklyStats(domain);
+  renderStudyStatsChart(weeklyStats || { total: 0, history: {} });
+}
+
+/** 학습현황 맨 위의 범위 단추. 언어에 범위가 하나뿐이면 그리지 않는다. */
+function renderProgressDomainTabs(root) {
+  const holder = root.querySelector('#progress-domain-tabs');
+  if (!holder) return;
+  const group = getDomainGroup(userConfig.currentDomain);
+  if (group.domains.length < 2) {
+    holder.hidden = true;
+    return;
+  }
+  holder.innerHTML = group.domains.map((d) => `
+    <button type="button" class="progress-domain-tab${d === window.progressViewDomain ? ' active' : ''}" data-domain="${d}">${t(`summary.${d}`)}</button>`).join('');
+  holder.querySelectorAll('.progress-domain-tab').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (btn.dataset.domain === window.progressViewDomain) return;
+      window.progressViewDomain = btn.dataset.domain;
+      holder.querySelectorAll('.progress-domain-tab').forEach((b) => b.classList.toggle('active', b === btn));
+      await renderProgressView(window.progressViewDomain);
+    });
+  });
 }
 
 /** 학습현황에서 글자를 길게 누르면 여는 힌트 목록 (ui-modal-handler.js 의 길게 누르기가 부른다) */
@@ -2306,7 +2382,7 @@ window.resetSingleCharProgress = async function (domain, charId) {
  * 현재 도메인의 모든 미해금 문자를 Stage 1로 일괄 해금 (게스트 및 로그인 유저 공통 지원)
  */
 window.unlockAllCharacters = async function () {
-  const domain = userConfig.currentDomain;
+  const domain = window.progressViewDomain || userConfig.currentDomain;
   if (!confirm(`현재 도메인(${domain})의 미해금 문자를 모두 Stage 1 단계로 일괄 해금하시겠습니까?`)) return;
 
   try {
@@ -2326,7 +2402,7 @@ window.unlockAllCharacters = async function () {
  * 현재 도메인의 모든 진도 내역을 전면 초기화 (게스트 및 로그인 유저 공통 지원)
  */
 window.resetAllProgressData = async function () {
-  const domain = userConfig.currentDomain;
+  const domain = window.progressViewDomain || userConfig.currentDomain;
   if (!confirm(`경고: 현재 도메인(${domain})의 모든 학습 기록이 영구 삭제됩니다.\n진행하시겠습니까?`)) return;
 
   try {
