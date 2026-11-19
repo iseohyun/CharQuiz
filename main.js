@@ -31,7 +31,9 @@ import {
   updateDailyStats,
   getUserConfig,
   saveUserConfig,
-  getWeeklyStats,
+  loadComboState,
+  saveComboStats,
+  getComboHistory,
   submitSpeedrunRanking,
   getGlobalRankings,
   getStudyRankings,
@@ -59,7 +61,7 @@ import {
   INTERVALS
 } from './components/engine.js';
 import {
-  renderStudyStatsChart,
+  renderComboChart,
   renderResponseTimeChart,
   renderProgressTable,
   getStageColor,
@@ -268,6 +270,7 @@ async function initApp() {
 
     // 로그인 사용자와 게스트 모두 저장된 설정을 불러온다 (기존에는 게스트 설정이 새로고침마다 초기화됨)
     applySavedConfig(await getUserConfig());
+    comboState = await loadComboState();
     setLanguage(userConfig.uiLanguage);
 
     window.currentDomain = userConfig.currentDomain;
@@ -584,16 +587,28 @@ async function startQuizSession() {
   if (historyBar) historyBar.innerHTML = '';
 
   // 여러 범위를 골랐으면 범위마다 몫을 나눠 풀을 만들고 합친다
+  const group = getDomainGroup(userConfig.currentDomain);
   const domains = getActiveDomains();
   const perDomainSize = Math.max(4, Math.ceil(userConfig.MAX_POOL_SIZE / domains.length));
   currentPool = [];
-  for (const [domainIndex, domain] of domains.entries()) {
+  for (const domain of domains) {
     const dbData = await getAllProgress(domain);
     const pool = initSessionPool(domain, dbData, userConfig.autoProgress, perDomainSize);
-    currentPool.push(...pool.map((item) => tagPoolItem(item, domain, domainIndex)));
+    currentPool.push(...pool.map((item) => tagPoolItem(item, domain, group.domains.indexOf(domain))));
   }
-  if (currentPool.length > userConfig.MAX_POOL_SIZE && domains.length > 1) {
-    currentPool = currentPool.sort(() => Math.random() - 0.5).slice(0, Math.max(userConfig.MAX_POOL_SIZE, 4));
+  // 꺼 둔 같은 언어 범위라도 복습할 때가 된 글자는 함께 낸다(새 글자는 켜 둔 범위에서만)
+  for (const domain of group.domains.filter((d) => !domains.includes(d))) {
+    const dbData = await getAllProgress(domain);
+    const dueItems = initSessionPool(domain, dbData, false, userConfig.MAX_POOL_SIZE).filter((item) => item.isEligibleForPromotion);
+    currentPool.push(...dueItems.map((item) => tagPoolItem(item, domain, group.domains.indexOf(domain))));
+  }
+  // 넘치면 복습할 글자를 먼저 남기고 자른다
+  const poolLimit = Math.max(userConfig.MAX_POOL_SIZE, 4);
+  if (currentPool.length > poolLimit) {
+    currentPool = currentPool
+      .sort(() => Math.random() - 0.5)
+      .sort((a, b) => Number(b.isEligibleForPromotion) - Number(a.isEligibleForPromotion))
+      .slice(0, poolLimit);
   }
 
   if (!currentPool || currentPool.length === 0) {
@@ -703,6 +718,7 @@ async function handleUserAnswer(selectedCharId, latency) {
   });
   updateHistoryBarUI();
   if (isCorrect) showCombo(getTrailingStreak(sessionHistory));
+  trackRunningCombo(isCorrect);
 
   if (!isCorrect) {
     await handleErrorFeedback(target.charId);
@@ -775,6 +791,7 @@ async function terminateQuizSession() {
 
   resetToMainModeSelection();
   showStudySummary();
+  saveComboStats(getSessionMaxCombo(sessionHistory), comboState);
 
   // 복습 알림 예약은 Firestore 저장과 따로 먼저 시작한다.
   // 연결이 나쁘면 Firestore 저장이 끝나지 않고 멈춰 있어, 그 뒤에 두면 예약 요청이 아예 나가지 않는다.
@@ -2053,6 +2070,12 @@ async function openRemoteModalPopup(viewName, options = {}) {
       // 처음에는 시험에 켜 둔 범위, 둘 다 켜져 있으면 앞의 것(히라가나, 대문자)
       window.progressViewDomain = getActiveDomains()[0];
       renderProgressDomainTabs(overlay);
+      overlay.querySelectorAll('.combo-range-tab').forEach((tab) => {
+        tab.addEventListener('click', (e) => {
+          e.stopPropagation();
+          renderComboStats(tab.dataset.range);
+        });
+      });
       await renderProgressView(window.progressViewDomain);
     }
 
@@ -2295,8 +2318,48 @@ async function renderProgressView(domain) {
   const domainData = await getAllProgress(domain);
   await renderResponseTimeChart(domain);
   renderProgressTable(domain, domainData);
-  const weeklyStats = await getWeeklyStats(domain);
-  renderStudyStatsChart(weeklyStats || { total: 0, history: {} });
+  await renderComboStats(comboRange);
+}
+
+/* ---------- 콤보 기록 ---------- */
+let comboState = { current: 0, best: 0, bestAt: null }; // 판·날짜가 바뀌어도 이어지는 연속 정답과 역대 최대
+let comboRange = 'week';
+
+/** 학습 모드 답 하나를 이어지는 콤보에 반영한다 */
+function trackRunningCombo(isCorrect) {
+  if (!isCorrect) {
+    comboState.current = 0;
+    return;
+  }
+  comboState.current += 1;
+  if (comboState.current > comboState.best) {
+    comboState.best = comboState.current;
+    comboState.bestAt = toLocalDateKeyForCombo();
+  }
+}
+
+function toLocalDateKeyForCombo(date = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** 이번 판에서 가장 길게 이어진 정답 수 */
+function getSessionMaxCombo(history) {
+  let best = 0;
+  let run = 0;
+  history.forEach((h) => {
+    run = h.isCorrect ? run + 1 : 0;
+    best = Math.max(best, run);
+  });
+  return best;
+}
+
+/** 학습현황의 최대 콤보 그래프(주·월·년)와 역대 최대 */
+async function renderComboStats(range) {
+  comboRange = range;
+  document.querySelectorAll('.combo-range-tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.range === range));
+  const entries = await getComboHistory(range);
+  renderComboChart(entries, comboState);
 }
 
 /** 학습현황 맨 위의 범위 단추. 언어에 범위가 하나뿐이면 그리지 않는다. */
@@ -2483,12 +2546,12 @@ async function updateReviewCountBadge() {
   if (!badge) return;
 
   try {
-    const domain = userConfig.currentDomain;
-    const dbData = await getAllProgress(domain) || {};
+    // 학습에는 같은 언어의 모든 범위에서 복습 글자를 내므로 배지도 언어 전체를 센다
     const now = Date.now();
-    const rows = ALPHABETS[domain] || [];
-
     let count = 0;
+    for (const domain of getDomainGroup(userConfig.currentDomain).domains) {
+    const dbData = await getAllProgress(domain) || {};
+    const rows = ALPHABETS[domain] || [];
     let idCounter = 0;
 
     for (const row of rows) {
@@ -2509,6 +2572,7 @@ async function updateReviewCountBadge() {
           }
         }
       }
+    }
     }
 
     if (count > 0) {

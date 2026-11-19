@@ -22,14 +22,17 @@
   }
 </style>
 <div id="progress-domain-tabs" class="progress-domain-tabs"></div>
-<div style="margin-bottom:12px; padding:12px; background:#f9f9f9; border-radius:6px;">
-  <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:6px;">
-    <span style="font-weight:bold; font-size:13px;">최근 일주일 학습량</span>
-    <span style="font-size:11px; color:#666;">총 학습: <span id="total-study-time"
-        style="font-weight:bold; color:#4a90e2;">0분</span></span>
+<div class="combo-stats">
+  <div class="combo-stats-head">
+    <span class="combo-stats-title">최대 콤보</span>
+    <div class="combo-range-tabs" role="tablist">
+      <button type="button" class="combo-range-tab active" data-range="week">주</button>
+      <button type="button" class="combo-range-tab" data-range="month">월</button>
+      <button type="button" class="combo-range-tab" data-range="year">년</button>
+    </div>
   </div>
-  <div id="study-chart-container" style="display:flex; align-items:flex-end; gap:6px; height:60px; padding-top:5px;">
-  </div>
+  <div class="combo-all-time-row">역대 최대 <b id="combo-all-time">-</b></div>
+  <div id="combo-chart" class="combo-chart"></div>
 </div>
 
 <div style="margin-bottom:12px; padding:12px; background:#f9f9f9; border-radius:6px;">

@@ -30,8 +30,6 @@ let progressCache = {};
 let progressMeta = {};
 
 // 주간 학습 통계 서버 조회 결과 캐시 (사용자별, 10분 유효)
-const WEEKLY_STATS_CACHE_TTL_MS = 10 * 60 * 1000;
-let weeklyServerStatsCache = { uid: null, fetchedAt: 0, byDay: {} };
 
 // Firestore/localStorage 에 저장할 진도 필드 목록 (세션 중에만 쓰는 플래그는 저장하지 않음)
 const PERSISTED_PROGRESS_FIELDS = [
@@ -547,68 +545,7 @@ export const getUserConfig = async () => {
   return null;
 };
 
-/**
- * 서버(users/{uid}/study_stats)의 최근 7일 학습시간 문서를 1회 쿼리로 읽어 캐시한다.
- * 로컬 기록이 없는 기기(다른 기기, 브라우저 데이터 삭제 등)에서도 주간 차트를 복원하기 위한 폴백이다.
- * @param {string[]} dayKeys 오래된 날짜부터 정렬된 'YYYY-MM-DD' 키
- * @returns {Promise<object>} { 'YYYY-MM-DD': { [domain]: seconds } }
- */
-const _fetchServerWeeklyStats = async (dayKeys) => {
-  const isCacheValid = weeklyServerStatsCache.uid === currentUserUid &&
-    (Date.now() - weeklyServerStatsCache.fetchedAt) < WEEKLY_STATS_CACHE_TTL_MS;
-  if (isCacheValid) return weeklyServerStatsCache.byDay;
 
-  const byDay = {};
-  try {
-    const statsRef = collection(db, 'users', currentUserUid, 'study_stats');
-    const q = query(
-      statsRef,
-      where(documentId(), '>=', dayKeys[0]),
-      where(documentId(), '<=', dayKeys[dayKeys.length - 1])
-    );
-    const snapshot = await getDocs(q);
-    snapshot.forEach((docSnap) => {
-      byDay[docSnap.id] = docSnap.data();
-    });
-    weeklyServerStatsCache = { uid: currentUserUid, fetchedAt: Date.now(), byDay };
-  } catch (err) {
-    console.warn("[LocalFirst] 주간 학습통계 서버 조회 생략 (로컬 값만 사용):", err.message);
-  }
-  return byDay;
-};
-
-/**
- * 최근 7일간의 학습 통계 가져오기 (로컬 기록 + 서버 기록 중 큰 값 사용)
- * 서버 기록은 모든 기기의 누계이고, 로컬 기록은 오프라인일 때 서버 저장이 실패한 분까지 포함하므로
- * 날짜별로 더 큰 값을 사용한다. (서버 조회는 10분 캐시, 최대 7건 Read)
- */
-export const getWeeklyStats = async (domain) => {
-  if (!currentUserUid || !domain) return { total: 0, history: {} };
-
-  const stats = { total: 0, history: {} };
-  const days = getRecentLocalDateKeys(7);
-
-  let localStats = {};
-  try {
-    const storageKey = `CHARQUIZ_STUDY_STATS_${currentUserUid}`;
-    const rawStats = localStorage.getItem(storageKey);
-    localStats = rawStats ? JSON.parse(rawStats) : {};
-  } catch (e) {
-    console.warn("[LocalFirst] 주간 학습통계 로컬 계산 실패:", e);
-  }
-
-  const serverStats = await _fetchServerWeeklyStats(days);
-
-  days.forEach(dayStr => {
-    const localSeconds = (localStats[dayStr] && localStats[dayStr][domain]) || 0;
-    const serverSeconds = (serverStats[dayStr] && serverStats[dayStr][domain]) || 0;
-    const seconds = Math.max(localSeconds, serverSeconds);
-    stats.history[dayStr] = seconds;
-    stats.total += seconds;
-  });
-
-  return stats;
-};
 
 /**
  * 학습 모드 랭킹 기록 등록 (예외 방어)
@@ -843,4 +780,123 @@ export const getTimeAttackRankings = async (limitCount = 10, targetDomain = 'all
         updatedAt: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
       };
     });
+};
+
+/* ==========================================================================
+   콤보 기록 (학습 모드)
+   - 날마다 최대 콤보: users/{uid}/study_stats/{날짜}.charquizMaxCombo (그날 가장 길게 이어진 정답 수)
+   - 역대 최대 콤보: users/{uid}.charquizCombo = { current, best, bestAt }
+     current 는 학습 판·날짜가 바뀌어도 이어지는 연속 정답 수(틀리면 0), best 는 그 최댓값.
+   - 로컬 우선: CHARQUIZ_COMBO_{uid} 에 { current, best, bestAt, daily: {날짜: 최대} } 를 먼저 적는다.
+   ========================================================================== */
+const comboStorageKey = () => `CHARQUIZ_COMBO_${currentUserUid}`;
+
+function readLocalCombo() {
+  try {
+    return JSON.parse(localStorage.getItem(comboStorageKey()) || 'null') || { current: 0, best: 0, bestAt: null, daily: {} };
+  } catch {
+    return { current: 0, best: 0, bestAt: null, daily: {} };
+  }
+}
+
+function writeLocalCombo(value) {
+  try {
+    localStorage.setItem(comboStorageKey(), JSON.stringify(value));
+  } catch {
+    /* 무시 */
+  }
+}
+
+/**
+ * 이어지는 콤보 상태(역대 최대 포함). 서버와 로컬 중 큰 best 를 쓰고, current 는 더 최근에 적힌 쪽을 쓴다.
+ * @returns {Promise<{current: number, best: number, bestAt: string|null}>}
+ */
+export const loadComboState = async () => {
+  if (!currentUserUid) return { current: 0, best: 0, bestAt: null };
+  const local = readLocalCombo();
+  let server = null;
+  try {
+    const snap = await getDoc(doc(db, 'users', currentUserUid));
+    server = snap.exists() ? snap.data().charquizCombo || null : null;
+  } catch (err) {
+    console.warn('[Combo] 서버 콤보 기록을 읽지 못했습니다:', err.message);
+  }
+  if (!server) return { current: local.current || 0, best: local.best || 0, bestAt: local.bestAt || null };
+  const useServerCurrent = (server.updatedAt || 0) > (local.updatedAt || 0);
+  const bestFromServer = (server.best || 0) >= (local.best || 0);
+  return {
+    current: useServerCurrent ? server.current || 0 : local.current || 0,
+    best: Math.max(server.best || 0, local.best || 0),
+    bestAt: bestFromServer ? server.bestAt || null : local.bestAt || null
+  };
+};
+
+/**
+ * 학습 한 판이 끝났을 때 콤보 기록을 남긴다.
+ * @param {number} sessionMaxCombo 이번 판에서 가장 길게 이어진 정답 수
+ * @param {{current: number, best: number, bestAt: string|null}} state 이어지는 콤보 상태
+ */
+export const saveComboStats = async (sessionMaxCombo, state) => {
+  if (!currentUserUid) return;
+  const today = toLocalDateKey();
+  const now = Date.now();
+  const local = readLocalCombo();
+  local.daily = local.daily || {};
+  local.daily[today] = Math.max(local.daily[today] || 0, sessionMaxCombo);
+  Object.assign(local, { current: state.current, best: state.best, bestAt: state.bestAt, updatedAt: now });
+  writeLocalCombo(local);
+
+  try {
+    await setDoc(doc(db, 'users', currentUserUid), {
+      charquizCombo: { current: state.current, best: state.best, bestAt: state.bestAt, updatedAt: now }
+    }, { merge: true });
+    if (sessionMaxCombo > 0) {
+      const statsRef = doc(db, 'users', currentUserUid, 'study_stats', today);
+      const snap = await getDoc(statsRef);
+      const prev = snap.exists() ? Number(snap.data().charquizMaxCombo) || 0 : 0;
+      if (sessionMaxCombo > prev) await setDoc(statsRef, { charquizMaxCombo: sessionMaxCombo, lastUpdated: now }, { merge: true });
+    }
+  } catch (err) {
+    console.warn('[Combo] 콤보 기록 서버 저장 생략(로컬 보존):', err.message);
+  }
+};
+
+/**
+ * 기간별 최대 콤보.
+ * @param {'week'|'month'|'year'} range 주 = 최근 7일, 월 = 최근 30일(날마다), 년 = 최근 12달(달마다 최대)
+ * @returns {Promise<Array<{key: string, label: string, value: number}>>}
+ */
+export const getComboHistory = async (range = 'week') => {
+  if (!currentUserUid) return [];
+  const dayCount = range === 'year' ? 366 : range === 'month' ? 30 : 7;
+  const days = getRecentLocalDateKeys(dayCount);
+  const daily = { ...(readLocalCombo().daily || {}) };
+
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'users', currentUserUid, 'study_stats'),
+      where(documentId(), '>=', days[0])
+    ));
+    snap.forEach((d) => {
+      const v = Number(d.data().charquizMaxCombo) || 0;
+      if (v > (daily[d.id] || 0)) daily[d.id] = v;
+    });
+  } catch (err) {
+    console.warn('[Combo] 서버 콤보 이력을 읽지 못했습니다(로컬 값만 사용):', err.message);
+  }
+
+  if (range !== 'year') {
+    return days.map((key) => ({ key, label: key.slice(5).replace('-', '/'), value: daily[key] || 0 }));
+  }
+  const months = [];
+  const now = new Date();
+  for (let i = 11; i >= 0; i--) {
+    const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push(`${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`);
+  }
+  return months.map((key) => ({
+    key,
+    label: `${Number(key.slice(5))}월`,
+    value: Math.max(0, ...Object.entries(daily).filter(([d]) => d.startsWith(key)).map(([, v]) => v))
+  }));
 };
