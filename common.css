@@ -1526,3 +1526,410 @@ textarea,
   user-select: text;
   -webkit-touch-callout: default;
 }
+
+/* ==========================================================================
+   설정 화면 (전체 화면, 왼쪽 위 도구 줄, 접는 묶음)
+   ========================================================================== */
+/* 헤더 설정 톱니의 new 점과 설정 화면 앱 정보 아이콘의 새 버전 점 */
+.setting-new-dot {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #ffffff;
+  pointer-events: none;
+}
+
+.setting-new-dot[hidden] {
+  display: none;
+}
+
+.modal-overlay.setting-screen {
+  background: #fcfdff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  align-items: stretch;
+}
+
+.setting-screen .modal-content {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fcfdff;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  animation: fadeIn 0.18s ease;
+}
+
+.setting-screen .modal-header,
+.setting-screen .modal-body {
+  width: 100%;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+
+.setting-screen-header {
+  gap: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 10px;
+}
+
+.setting-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.setting-tool-btn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.setting-tool-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.setting-tool-btn:active {
+  transform: scale(0.94);
+}
+
+.setting-tool-btn .material-symbols-outlined {
+  font-size: 1.3rem;
+}
+
+.setting-tool-btn .setting-new-dot {
+  top: 4px;
+  right: 4px;
+}
+
+/* 알림함 아이콘의 읽지 않은 수 */
+.inbox-unread-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.inbox-unread-badge[hidden] {
+  display: none;
+}
+
+.setting-group {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.setting-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #0f172a;
+  cursor: pointer;
+  list-style: none;
+  background: #f8fafc;
+}
+
+.setting-group-head::-webkit-details-marker {
+  display: none;
+}
+
+.setting-group-chev {
+  color: #94a3b8;
+  transition: transform 0.2s ease;
+}
+
+.setting-group[open] .setting-group-chev {
+  transform: rotate(180deg);
+}
+
+.setting-group[open] .setting-group-head {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.setting-row,
+.setting-row.setting-notify-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0;
+  padding: 6px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.9rem;
+}
+
+.setting-group .setting-row:last-child {
+  border-bottom: none;
+}
+
+.setting-label {
+  flex-shrink: 0;
+  font-weight: 700;
+  color: #334155;
+}
+
+.setting-value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.setting-account {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0;
+  text-align: right;
+}
+
+.setting-account small {
+  color: #64748b;
+  font-size: 0.75rem;
+  overflow-wrap: anywhere;
+}
+
+.setting-select,
+.setting-number {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 5px 6px;
+  background: #ffffff;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.setting-select {
+  max-width: 60%;
+}
+
+.setting-number {
+  width: 64px;
+  text-align: right;
+}
+
+.setting-check {
+  width: 20px;
+  height: 20px;
+  accent-color: #ec4899;
+  cursor: pointer;
+}
+
+.setting-range {
+  flex: 1;
+  max-width: 260px;
+}
+
+.setting-range input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  accent-color: #ec4899;
+}
+
+.setting-range-val {
+  min-width: 42px;
+  text-align: right;
+  font-weight: 800;
+}
+
+.setting-btn-pair {
+  gap: 6px;
+}
+
+.setting-toggle-btn {
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.setting-group .setting-notify-last {
+  margin: 0;
+  padding: 0 14px 8px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.setting-keys {
+  padding: 0 14px 12px;
+}
+
+.setting-keys > div {
+  margin-top: 0 !important;
+  border-top: none !important;
+}
+
+/* ==========================================================================
+   알림함 (설정 화면 종 아이콘 → 받은 복습 알림 목록)
+   ========================================================================== */
+.inbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1300;
+  animation: fadeIn 0.18s ease;
+}
+
+.inbox-card {
+  width: min(440px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.inbox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.inbox-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.inbox-close {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.inbox-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.inbox-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.inbox-item.unread {
+  border-color: #fbcfe8;
+  background: #fdf2f8;
+}
+
+.inbox-item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.inbox-item-title {
+  font-size: 0.9rem;
+  color: var(--text-main);
+}
+
+.inbox-item-time {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.inbox-item-body {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.inbox-empty {
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.inbox-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.inbox-clear {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.inbox-study {
+  border: none;
+  background: #ec4899;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}

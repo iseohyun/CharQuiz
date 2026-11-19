@@ -1,92 +1,121 @@
-<div style="margin-bottom:20px; padding:15px; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; font-size:14px; color:#333;">
-  <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
-    <span style="font-weight:bold; font-size:16px;">{{userName}}</span>
-    <span style="font-size:13px; color:#555;">
-      (<select id="user-age" style="width:65px; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px; cursor:pointer; font-size:12px;">
-        <option value="미상">연령대</option>
-        <option value="10대">10대</option>
-        <option value="20대">20대</option>
-        <option value="30대">30대</option>
-        <option value="40대">40대</option>
-        <option value="50대">50대</option>
-        <option value="60대">60대</option>
-        <option value="70대">70대</option>
-      </select>,
-      <select id="user-gender" style="width:50px; text-align:center; border:1px solid #ccc; border-radius:3px; padding:2px; cursor:pointer; font-size:12px;">
-        <option value="미상">성별</option>
-        <option value="남">남</option>
-        <option value="여">여</option>
-      </select>)
+<!-- 설정 화면: 네 묶음을 접고 펼친다. 줄마다 왼쪽은 설정 이름, 오른쪽은 설정 값. 글자는 components/i18n.js 의 키로 바뀐다. -->
+<details class="setting-group" open>
+  <summary class="setting-group-head">
+    <span data-i18n="setting.groupUser">사용자</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-row">
+    <span class="setting-label" data-i18n="setting.account">계정</span>
+    <span class="setting-value setting-account">
+      <strong>{{userName}}</strong>
+      <small>{{userEmail}}</small>
     </span>
-    <span style="color:#666; font-size:13px; margin-left:5px;">{{userEmail}}</span>
   </div>
-</div>
-
-<div style="margin-bottom:15px">
-  <label style="display:block; margin-bottom:10px; font-weight:bold;">목표 학습 시간:</label>
-  <div style="display:flex; align-items:center; gap:15px;">
-    <input type="range" id="time-slider" min="0" max="5" step="1" value="{{timeIdx}}" style="flex:1; cursor:pointer;"
-      oninput="updateTimeFromSlider(this.value)">
-    <span id="time-val-display" style="font-weight:bold; min-width:30px; text-align:right;">{{learningTime}}</span>초
+  <div class="setting-row">
+    <label class="setting-label" for="user-age" data-i18n="setting.age">연령대</label>
+    <select id="user-age" class="setting-select">
+      <option value="미상" data-i18n="setting.unknown">선택 안 함</option>
+      <option value="10대" data-age="10">10대</option>
+      <option value="20대" data-age="20">20대</option>
+      <option value="30대" data-age="30">30대</option>
+      <option value="40대" data-age="40">40대</option>
+      <option value="50대" data-age="50">50대</option>
+      <option value="60대" data-age="60">60대</option>
+      <option value="70대" data-age="70">70대</option>
+    </select>
   </div>
-</div>
-
-<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
-  <span style="font-weight: bold;">단어장 크기</span>
-  <input type="number" id="pool-size" min="1" max="100" value="{{MAX_POOL_SIZE}}"
-    style="width: 60px; text-align: right;">
-</div>
-
-<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
-  <span style="font-weight: bold;">자동진도</span>
-  <input type="checkbox" id="auto-progress" {{#if autoProgress}}checked{{/if}}>
-</div>
-
-<div class="setting-notify-row">
-  <span style="font-weight: bold;">복습 알림</span>
-  <div class="setting-notify-ctrl">
-    <span id="notify-status" class="setting-notify-status"></span>
-    <button id="btn-notify-enable" type="button" class="setting-notify-btn" hidden>권한 허용</button>
-    <input type="checkbox" id="review-reminder" aria-label="복습 알림 받기">
+  <div class="setting-row">
+    <label class="setting-label" for="user-gender" data-i18n="setting.gender">성별</label>
+    <select id="user-gender" class="setting-select">
+      <option value="미상" data-i18n="setting.unknown">선택 안 함</option>
+      <option value="남" data-i18n="setting.male">남</option>
+      <option value="여" data-i18n="setting.female">여</option>
+    </select>
   </div>
-</div>
-<p id="notify-last" class="setting-notify-last" hidden></p>
+</details>
 
-<div
-  style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px; gap:15px;">
-  <span style="font-weight: bold; min-width:65px;">음성속도</span>
-  <input type="range" id="speech-slider" min="0" max="5" step="1" value="{{speechIdx}}" style="flex:1; cursor:pointer;"
-    oninput="updateSpeechFromSlider(this.value)">
-  <span id="speech-val-display" style="font-weight:bold; min-width:30px; text-align:right;">{{speechRate}}</span>
-</div>
-
-<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
-  <span style="font-weight: bold;">음성 성우 엔진</span>
-  <select id="voice-source" onchange="changeVoiceSource(this.value)" style="width: 210px; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 6px; cursor: pointer; font-size: 12px; background: #ffffff;">
-    <option value="google_mp3">🎵 구글 여성 성우 (Female MP3)</option>
-    <option value="google_male_mp3">👨‍💼 구글 남성 성우 (Male MP3)</option>
-    <option value="haruka_mp3">🌸 Windows Haruka (Haruka MP3)</option>
-    <option value="browser_tts">🎙️ 브라우저 실시간 TTS</option>
-  </select>
-</div>
-<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
-  <span style="font-weight: bold;">오답 표시</span>
-  <div style="display:flex; gap:8px;">
-    <button id="btn-error-show" style="padding:4px 10px; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer;">표시</button>
-    <button id="btn-error-audio" style="padding:4px 10px; color:white; border:none; border-radius:4px; font-size:12px; cursor:pointer;">+ 음성</button>
+<details class="setting-group" open>
+  <summary class="setting-group-head">
+    <span data-i18n="setting.groupPersonal">개인화 설정</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-row">
+    <label class="setting-label" for="time-slider" data-i18n="setting.learningTime">1회당 학습 시간</label>
+    <span class="setting-value setting-range">
+      <input type="range" id="time-slider" min="0" max="5" step="1" value="{{timeIdx}}"
+        oninput="updateTimeFromSlider(this.value)">
+      <span class="setting-range-val"><span id="time-val-display">{{learningTime}}</span><span data-i18n="setting.seconds">초</span></span>
+    </span>
   </div>
-</div>
+  <div class="setting-row">
+    <label class="setting-label" for="pool-size" data-i18n="setting.poolSize">1회당 글자 수</label>
+    <input type="number" id="pool-size" class="setting-number" min="1" max="100" value="{{MAX_POOL_SIZE}}">
+  </div>
+  <div class="setting-row">
+    <label class="setting-label" for="auto-progress" data-i18n="setting.autoProgress">자동 진도</label>
+    <input type="checkbox" id="auto-progress" class="setting-check" {{#if autoProgress}}checked{{/if}}>
+  </div>
+</details>
 
-<div style="display: flex; flex-direction: row; align-items: center; justify-content: space-between; margin-top:20px;">
-  <span style="font-weight: bold;">관전 모드 출력 주기</span>
-  <select id="spectator-interval" style="width: 70px; text-align: center; border: 1px solid #ccc; border-radius: 3px; padding: 2px; cursor: pointer; font-size: 12px;">
-    <option value="0.8">0.8초</option>
-    <option value="1">1초</option>
-    <option value="1.5">1.5초</option>
-    <option value="2">2초</option>
-    <option value="2.5">2.5초</option>
-    <option value="3">3초</option>
-  </select>
-</div>
+<details class="setting-group" open>
+  <summary class="setting-group-head">
+    <span data-i18n="setting.groupSystem">시스템</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-row">
+    <label class="setting-label" for="ui-language" data-i18n="setting.language">언어</label>
+    <select id="ui-language" class="setting-select">{{languageOptions}}</select>
+  </div>
+  <div class="setting-row">
+    <label class="setting-label" for="speech-slider" data-i18n="setting.speechRate">음성 속도</label>
+    <span class="setting-value setting-range">
+      <input type="range" id="speech-slider" min="0" max="5" step="1" value="{{speechIdx}}"
+        oninput="updateSpeechFromSlider(this.value)">
+      <span class="setting-range-val"><span id="speech-val-display">{{speechRate}}</span>×</span>
+    </span>
+  </div>
+  <div class="setting-row">
+    <label class="setting-label" for="voice-source" data-i18n="setting.voice">음성 모델</label>
+    <select id="voice-source" class="setting-select setting-select-wide">
+      <option value="google_mp3">🎵 구글 여성 성우 (Female MP3)</option>
+      <option value="google_male_mp3">👨‍💼 구글 남성 성우 (Male MP3)</option>
+      <option value="haruka_mp3">🌸 Windows Haruka (Haruka MP3)</option>
+      <option value="browser_tts">🎙️ 브라우저 실시간 TTS</option>
+    </select>
+  </div>
+  <div class="setting-row setting-notify-row">
+    <span class="setting-label" data-i18n="setting.reminder">복습 알림</span>
+    <div class="setting-notify-ctrl">
+      <span id="notify-status" class="setting-notify-status"></span>
+      <button id="btn-notify-enable" type="button" class="setting-notify-btn" hidden>권한 허용</button>
+      <input type="checkbox" id="review-reminder" class="setting-check" aria-label="복습 알림 받기">
+    </div>
+  </div>
+  <p id="notify-last" class="setting-notify-last" hidden></p>
+  <div class="setting-row">
+    <span class="setting-label" data-i18n="setting.errorFeedback">오답 표시 방법</span>
+    <div class="setting-value setting-btn-pair">
+      <button id="btn-error-show" type="button" class="setting-toggle-btn">표시</button>
+      <button id="btn-error-audio" type="button" class="setting-toggle-btn">+ 음성</button>
+    </div>
+  </div>
+  <div class="setting-row">
+    <label class="setting-label" for="spectator-interval" data-i18n="setting.spectatorInterval">관전 모드 주기</label>
+    <select id="spectator-interval" class="setting-select">
+      <option value="0.8">0.8s</option>
+      <option value="1">1s</option>
+      <option value="1.5">1.5s</option>
+      <option value="2">2s</option>
+      <option value="2.5">2.5s</option>
+      <option value="3">3s</option>
+    </select>
+  </div>
+</details>
 
-{{keybindingsConfig}}
+<details class="setting-group">
+  <summary class="setting-group-head">
+    <span data-i18n="setting.groupKeys">단축키</span>
+    <span class="material-symbols-outlined setting-group-chev" aria-hidden="true">expand_more</span>
+  </summary>
+  <div class="setting-keys">{{keybindingsConfig}}</div>
+</details>

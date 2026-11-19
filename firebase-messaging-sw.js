@@ -39,11 +39,51 @@ messaging.onBackgroundMessage((payload) => {
     renotify: true
   };
 
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  return Promise.all([
+    self.registration.showNotification(notificationTitle, notificationOptions),
+    saveToInbox(notificationTitle, notificationOptions.body)
+  ]);
 });
 
-// 알림 클릭 시 이미 열린 CharQuiz 창이 있으면 포커스, 없으면 서비스 워커 scope(= 앱 기준 URL)를 새로 연다.
-// scope 를 쓰므로 서비스 경로가 바뀌어도 수정할 필요가 없다.
+// 알림함: components/notification-inbox.js 와 같은 DB·저장소·필드를 쓴다
+const INBOX_DB = 'charquiz-inbox';
+const INBOX_STORE = 'items';
+const INBOX_MAX_ITEMS = 50;
+
+function saveToInbox(title, body) {
+  return new Promise((resolve) => {
+    const req = indexedDB.open(INBOX_DB, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(INBOX_STORE)) {
+        req.result.createObjectStore(INBOX_STORE, { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onerror = () => resolve();
+    req.onsuccess = () => {
+      const dbi = req.result;
+      const tx = dbi.transaction(INBOX_STORE, 'readwrite');
+      const store = tx.objectStore(INBOX_STORE);
+      store.add({ title: String(title || ''), body: String(body || ''), receivedAt: Date.now(), read: false });
+      const all = store.getAll();
+      all.onsuccess = () => {
+        (all.result || [])
+          .sort((a, b) => b.receivedAt - a.receivedAt)
+          .slice(INBOX_MAX_ITEMS)
+          .forEach((old) => store.delete(old.id));
+      };
+      tx.oncomplete = async () => {
+        dbi.close();
+        const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        windowClients.forEach((client) => client.postMessage({ type: 'charquiz-inbox-updated' }));
+        resolve();
+      };
+      tx.onerror = () => { dbi.close(); resolve(); };
+    };
+  });
+}
+
+// 알림 클릭 시 이미 열린 CharQuiz 창이 있으면 알림함을 열게 하고 포커스, 없으면 서비스 워커 scope(= 앱 기준 URL)를
+// 알림함을 여는 표시(?inbox=1)와 함께 새로 연다. scope 를 쓰므로 서비스 경로가 바뀌어도 수정할 필요가 없다.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = self.registration.scope;
@@ -51,7 +91,10 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil((async () => {
     const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     const existingClient = windowClients.find((client) => client.url.startsWith(targetUrl));
-    if (existingClient) return existingClient.focus();
-    return self.clients.openWindow(targetUrl);
+    if (existingClient) {
+      existingClient.postMessage({ type: 'charquiz-open-inbox' });
+      return existingClient.focus();
+    }
+    return self.clients.openWindow(`${targetUrl}?inbox=1`);
   })());
 });

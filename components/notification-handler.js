@@ -11,6 +11,7 @@
 import { messaging } from './firebase-config.js';
 import { ENDPOINTS, FCM_VAPID_KEY } from './app-config.js';
 import { getToken, onMessage } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-messaging.js";
+import { addInboxItem } from './notification-inbox.js';
 
 let fcmToken = null;
 let foregroundListenerBound = false;
@@ -85,8 +86,10 @@ function bindForegroundMessages() {
 async function showReviewNotification(payload) {
   const registration = await navigator.serviceWorker.ready;
   const title = payload?.notification?.title || payload?.data?.title || '🧠 CharQuiz 복습 알림';
+  const body = payload?.notification?.body || payload?.data?.body || '지금이 복습하기 가장 좋은 타이밍입니다!';
+  addInboxItem({ title, body });
   await registration.showNotification(title, {
-    body: payload?.notification?.body || payload?.data?.body || '지금이 복습하기 가장 좋은 타이밍입니다!',
+    body,
     icon: new URL('icon-192.png', registration.scope).href,
     tag: 'review-reminder',
     renotify: true

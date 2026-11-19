@@ -11,6 +11,7 @@ export const userConfig = {
   speechRate: 0.85,
   currentDomain: 'hira',
   errorFeedbackMode: 'both',
+  uiLanguage: 'ko', // 화면 언어: 'ko' | 'en' | 'ja' (components/i18n.js)
   spectatorInterval: 1, // 관전모드 출력 주기 (초)
   voiceSource: 'google_mp3', // 음성 엔진 옵션: 'google_mp3', 'google_male_mp3', 'haruka_mp3', 'browser_tts'
   keybindings: {

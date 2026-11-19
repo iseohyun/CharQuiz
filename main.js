@@ -70,6 +70,10 @@ import {
   getLastReminderResult
 } from './components/notification-handler.js';
 import { startUpdateChecker } from './components/update-checker.js';
+import { APP_BASE_URL } from './components/app-config.js';
+import { UI_LANGUAGES, applyI18n, setLanguage, t } from './components/i18n.js';
+import { initNotificationInbox, openInboxModal, updateInboxBadge } from './components/notification-inbox.js';
+import { initSettingNewDot, hasUnseenVersion, markVersionSeen } from './components/new-dot.js';
 import {
   initAuthObserver,
   getActiveAuthProvider,
@@ -120,8 +124,8 @@ const MAIN_SELECTION_HTML = `
     <button class="mode-btn mode-study" onclick="startSessionWorkflow('study')">
       <div class="mode-btn-content">
         <span class="material-symbols-outlined mode-icon">menu_book</span>
-        <span class="mode-title">학습 모드</span>
-        <span class="mode-desc">반복 오디오 퀴즈로 가나 익히기</span>
+        <span class="mode-title" data-i18n="mode.study">학습 모드</span>
+        <span class="mode-desc" data-i18n="mode.studyDesc">반복 오디오 퀴즈로 가나 익히기</span>
       </div>
       <span class="keybind-badge" id="kb-badge-startStudy">Q</span>
     </button>
@@ -129,8 +133,8 @@ const MAIN_SELECTION_HTML = `
     <button class="mode-btn mode-record" onclick="startSessionWorkflow('record')">
       <div class="mode-btn-content">
         <span class="material-symbols-outlined mode-icon">timer</span>
-        <span class="mode-title">기록 모드</span>
-        <span class="mode-desc">타임어택으로 암기 속도 측정</span>
+        <span class="mode-title" data-i18n="mode.record">기록 모드</span>
+        <span class="mode-desc" data-i18n="mode.recordDesc">타임어택으로 암기 속도 측정</span>
       </div>
       <span class="keybind-badge" id="kb-badge-startRecord">W</span>
     </button>
@@ -138,8 +142,8 @@ const MAIN_SELECTION_HTML = `
     <button class="mode-btn mode-spectator" onclick="startSessionWorkflow('spectator')">
       <div class="mode-btn-content">
         <span class="material-symbols-outlined mode-icon">visibility</span>
-        <span class="mode-title">관전 모드</span>
-        <span class="mode-desc">자동 재생으로 편안하게 복습</span>
+        <span class="mode-title" data-i18n="mode.spectator">관전 모드</span>
+        <span class="mode-desc" data-i18n="mode.spectatorDesc">자동 재생으로 편안하게 복습</span>
       </div>
       <span class="keybind-badge" id="kb-badge-startSpectator">E</span>
     </button>
@@ -148,7 +152,7 @@ const MAIN_SELECTION_HTML = `
       <span class="material-symbols-outlined info-card-icon">auto_awesome</span>
       <div class="info-card-text">
         <strong>CharQuiz</strong>
-        <p>단축키(Q, W, E, 1~5)와 퀴즈 루프로 빠르게 가나를 마스터하세요.</p>
+        <p data-i18n="mode.info">단축키(Q, W, E, 1~5)와 퀴즈 루프로 빠르게 가나를 마스터하세요.</p>
       </div>
     </div>
   </div>
@@ -181,6 +185,10 @@ async function initApp() {
   // 웹 푸시 알림: 이미 허용된 경우에만 토큰을 조용히 받는다. 권한 요청은 설정의 「알림 켜기」 버튼에서만 한다.
   initNotificationToken();
 
+  // 알림함(설정 화면의 종 아이콘)과 설정 톱니의 new 점
+  initSettingNewDot();
+  initNotificationInbox({ onStartStudy: startStudyFromInbox });
+
   // 새 판 감지: 설치한 앱은 스스로 다시 불러오지 않으므로 서버의 판을 확인해 안내한다
   startUpdateChecker();
 
@@ -207,6 +215,7 @@ async function initApp() {
 
     // 로그인 사용자와 게스트 모두 저장된 설정을 불러온다 (기존에는 게스트 설정이 새로고침마다 초기화됨)
     applySavedConfig(await getUserConfig());
+    setLanguage(userConfig.uiLanguage);
 
     window.currentDomain = userConfig.currentDomain;
     updateDomainUI();
@@ -1116,6 +1125,7 @@ function resetToMainModeSelection() {
   const mainBox = document.getElementById('main-box');
   if (mainBox) {
     mainBox.innerHTML = MAIN_SELECTION_HTML;
+    applyI18n(mainBox);
     updateVisualBadges(userConfig);
   }
 
@@ -1460,6 +1470,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
         .replace('{{speechIdx}}', speechIdx)
         .replace('{{speechRate}}', userConfig.speechRate)
         .replace('{{#if autoProgress}}checked{{/if}}', userConfig.autoProgress ? 'checked' : '')
+        .replace('{{languageOptions}}', () => UI_LANGUAGES.map((lang) => `<option value="${lang.code}">${lang.label}</option>`).join(''))
         .replace('{{keybindingsConfig}}', () => kbHtml);
     }
 
@@ -1473,19 +1484,44 @@ async function openRemoteModalPopup(viewName, options = {}) {
       studyMode: '학습 모드'
     };
     const modalTitle = viewTitles[viewName] || '안내';
+    const isSetting = viewName === 'setting';
+    const versionIsNew = isSetting && hasUnseenVersion();
 
     const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = `
+    overlay.className = isSetting ? 'modal-overlay setting-screen' : 'modal-overlay';
+    overlay.innerHTML = isSetting ? `
+      <div class="modal-content">
+        <div class="modal-header setting-screen-header">
+          <div class="setting-toolbar">
+            <button type="button" class="modal-close setting-tool-btn" data-i18n-title="setting.close">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+            <button type="button" class="setting-tool-btn" id="setting-sound-btn" data-i18n-title="setting.soundTest">
+              <span class="material-symbols-outlined">sound_detection_loud_sound</span>
+            </button>
+            <button type="button" class="setting-tool-btn" id="setting-inbox-btn" data-i18n-title="setting.inbox">
+              <span class="material-symbols-outlined">notifications</span>
+              <span class="inbox-unread-badge" hidden></span>
+            </button>
+            <button type="button" class="setting-tool-btn" id="setting-help-btn" data-i18n-title="setting.about">
+              <span class="material-symbols-outlined">info</span>
+              ${versionIsNew ? '<span class="setting-new-dot"></span>' : ''}
+            </button>
+            <button type="button" class="setting-tool-btn" id="setting-share-btn" data-i18n-title="setting.share">
+              <span class="material-symbols-outlined">share</span>
+            </button>
+          </div>
+          <h3 class="modal-title">CharQuiz</h3>
+        </div>
+        <div class="modal-body">
+          ${htmlContent}
+        </div>
+      </div>
+    ` : `
       <div class="modal-content">
         <div class="modal-header">
           <h3 class="modal-title">${modalTitle}</h3>
           <div class="modal-header-actions">
-            ${viewName === 'setting' ? `
-              <button class="modal-icon-btn modal-help-trigger" id="setting-help-btn" title="도움말" aria-label="도움말">
-                <span class="material-symbols-outlined" style="font-size:18px;">question_mark</span>
-              </button>
-            ` : ''}
             <button class="modal-close" aria-label="닫기">&times;</button>
           </div>
         </div>
@@ -1573,15 +1609,41 @@ async function openRemoteModalPopup(viewName, options = {}) {
     }
 
     if (viewName === 'setting') {
-      const helpBtn = overlay.querySelector('#setting-help-btn');
-      if (helpBtn) {
-        helpBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          saveUserConfig(userConfig);
-          overlay.remove();
-          openRemoteModalPopup('help', { returnTo: 'setting' });
+      applyI18n(overlay);
+      localizeSettingOptions(overlay);
+      markVersionSeen();
+      updateInboxBadge();
+
+      const closeSettingScreen = () => {
+        saveUserConfig(userConfig);
+        overlay.remove();
+      };
+
+      overlay.querySelector('#setting-help-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeSettingScreen();
+        openRemoteModalPopup('help', { returnTo: 'setting' });
+      });
+
+      overlay.querySelector('#setting-sound-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playSoundTest();
+      });
+
+      overlay.querySelector('#setting-inbox-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openInboxModal({
+          onStartStudy: () => {
+            closeSettingScreen();
+            startStudyFromInbox();
+          }
         });
-      }
+      });
+
+      overlay.querySelector('#setting-share-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareApp();
+      });
 
       const ageSelect = document.getElementById('user-age');
       if (ageSelect) ageSelect.value = userConfig.age || '미상';
@@ -1611,24 +1673,36 @@ async function openRemoteModalPopup(viewName, options = {}) {
       const updateErrorFeedbackUI = () => {
         if (!btnErrorShow || !btnErrorAudio) return;
         if (userConfig.errorFeedbackMode === 'none') {
-          btnErrorShow.innerText = "무시";
+          btnErrorShow.innerText = t('setting.errorIgnore');
           btnErrorShow.style.background = "#9E9E9E";
           btnErrorAudio.style.background = "#9E9E9E";
           btnErrorAudio.disabled = true;
         } else {
-          btnErrorShow.innerText = "표시";
+          btnErrorShow.innerText = t('setting.errorShow');
           btnErrorShow.style.background = "#4CAF50";
           btnErrorAudio.disabled = false;
 
           if (userConfig.errorFeedbackMode === 'both') {
-            btnErrorAudio.innerText = "+ 음성";
+            btnErrorAudio.innerText = t('setting.errorWithVoice');
             btnErrorAudio.style.background = "#2196F3";
           } else {
-            btnErrorAudio.innerText = "정답만";
+            btnErrorAudio.innerText = t('setting.errorAnswerOnly');
             btnErrorAudio.style.background = "#FF9800";
           }
         }
       };
+
+      const languageSelect = overlay.querySelector('#ui-language');
+      if (languageSelect) {
+        languageSelect.value = userConfig.uiLanguage || 'ko';
+        languageSelect.addEventListener('change', () => {
+          userConfig.uiLanguage = languageSelect.value;
+          setLanguage(userConfig.uiLanguage);
+          localizeSettingOptions(overlay);
+          updateErrorFeedbackUI();
+          saveUserConfig(userConfig);
+        });
+      }
 
       if (btnErrorShow && btnErrorAudio) {
         if (!userConfig.errorFeedbackMode) userConfig.errorFeedbackMode = 'both';
@@ -1671,6 +1745,42 @@ async function openRemoteModalPopup(viewName, options = {}) {
   } catch (error) {
     console.error("모달 수급 및 초기화 파이프라인 에러 발생:", error);
   }
+}
+
+/** 설정 화면의 연령대 보기(10대 → 10s, 10代)를 지금 언어로 바꾼다. */
+function localizeSettingOptions(root) {
+  root.querySelectorAll('#user-age option[data-age]').forEach((option) => {
+    option.textContent = `${option.dataset.age}${t('setting.ageSuffix')}`;
+  });
+}
+
+/**
+ * 휴대폰의 공유하기 서랍을 연다(카톡·문자 등). 서랍이 없는 브라우저는 주소를 복사한다.
+ */
+async function shareApp() {
+  const shareData = { title: 'CharQuiz', text: t('share.text'), url: APP_BASE_URL };
+  if (navigator.share) {
+    try {
+      await navigator.share(shareData);
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') return; // 사용자가 서랍을 닫음
+      console.warn('[Share] 공유 서랍 실패, 주소 복사로 바꿉니다:', error);
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(APP_BASE_URL);
+    alert(t('share.copied'));
+  } catch (error) {
+    console.error('[Share] 주소 복사 실패:', error);
+    alert(`${t('share.failed')}\n${APP_BASE_URL}`);
+  }
+}
+
+/** 알림함의 「지금 복습하기」: 문제를 풀고 있지 않을 때만 학습 모드를 시작한다. */
+function startStudyFromInbox() {
+  if (timerInterval && !isTimeUp) return;
+  window.startSessionWorkflow?.('study');
 }
 
 window.popupHelp = () => openRemoteModalPopup('help');
