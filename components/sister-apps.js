@@ -1,6 +1,6 @@
 /**
  * @file components/sister-apps.js
- * @description QuizQuiz 자매품(퀴즈 앱) 링크. 목록은 Firestore 의 quiz_apps 컬렉션에 두고, 알림함 맨 위에 이 앱을 뺀 나머지를 보여 준다.
+ * @description QuizQuiz 자매품(퀴즈 앱) 링크. 목록은 Firestore 의 quiz_apps 컬렉션에 두고, 도움말 맨 위에 이 앱을 뺀 나머지를 보여 준다.
  * 새 퀴즈 앱을 내면 앱 코드는 고치지 않고 quiz_apps 에 문서 하나만 더한다(콘솔, 관리자).
  *   quiz_apps/{id} = { id, name, desc, url, icon, order, active }
  * 마지막으로 받은 목록은 기기에 저장해 두고 먼저 그린 뒤 새로 받아 고친다. 한 번도 못 받았으면 아래 기본 목록을 쓴다.
@@ -61,7 +61,7 @@ function renderList(slot, list) {
     </div>` : '';
 }
 
-/** 알림함에 넣을 자리. 그린 뒤 hydrateSisterApps(알림함) 로 채운다 */
+/** 도움말에 넣을 자리. 그린 뒤 hydrateSisterApps(도움말 창) 로 채운다 */
 export function renderSisterAppsHtml() {
   return '<div class="sister-apps" data-sister-apps></div>';
 }

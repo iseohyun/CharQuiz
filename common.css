@@ -2977,3 +2977,9 @@ html[data-accent="orange"] {
 .accent-swatch[aria-checked="true"] {
   box-shadow: 0 0 0 2px #0f172a;
 }
+
+/* 도움말 맨 위의 자매품 칸: 테두리 없이 아래 간격만 */
+.modal-body > .sister-apps {
+  padding: 0 0 12px;
+  margin-bottom: 12px;
+}

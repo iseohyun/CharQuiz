@@ -85,6 +85,7 @@ import { openHintListModal, renderHintHallOfFame } from './components/hint-handl
 import { SEASONS, SEASON_META, WEATHER_META, getSeasonByDate, getApproxWeather } from './components/season-weather.js';
 import { startLetterStage } from './components/letter-stage.js';
 import { getTrailingStreak, showCombo } from './components/combo-fx.js';
+import { renderSisterAppsHtml, hydrateSisterApps } from './components/sister-apps.js';
 import {
   initAuthObserver,
   getActiveAuthProvider,
@@ -2114,6 +2115,9 @@ async function openRemoteModalPopup(viewName, options = {}) {
     }
 
     if (viewName === 'help') {
+      // QuizQuiz 자매품 홍보는 도움말 맨 위 (quiz_apps 목록에서 이 앱을 뺀 나머지)
+      overlay.querySelector('.modal-body')?.insertAdjacentHTML('afterbegin', renderSisterAppsHtml());
+      hydrateSisterApps(overlay);
       overlay.querySelector('.modal-body')?.insertAdjacentHTML('beforeend', `
         <div class="app-version-box">
           <div><span>프로그램 버전</span><b>CharQuiz ${window.APP_VERSION || '-'}</b></div>
