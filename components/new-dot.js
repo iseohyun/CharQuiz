@@ -5,7 +5,10 @@
  * - 새 버전: window.APP_VERSION 이 이 기기에서 마지막으로 확인한 버전과 다를 때. 설정 화면을 열면 확인한 것으로 친다.
  *   처음 연 기기는 지금 버전을 확인한 것으로 적어 두고 점을 켜지 않는다.
  * - 새 알림: notification-inbox.js 가 보내는 'charquiz-inbox-changed' 의 읽지 않은 수. 알림함을 열면 사라진다.
+ * - 앱 설치: 아직 설치하지 않아 설치할 수 있으면(install-prompt.js). 설치하면 사라진다.
  */
+
+import { canOfferInstall } from './install-prompt.js';
 
 const SEEN_VERSION_KEY = 'CHARQUIZ_SEEN_VERSION';
 
@@ -47,7 +50,7 @@ export function markVersionSeen() {
 
 export function refreshSettingNewDot() {
   const dot = document.getElementById('setting-new-dot');
-  if (dot) dot.hidden = !(hasUnseenVersion() || unreadCount > 0);
+  if (dot) dot.hidden = !(hasUnseenVersion() || unreadCount > 0 || canOfferInstall());
 }
 
 export function initSettingNewDot() {
@@ -55,5 +58,6 @@ export function initSettingNewDot() {
     unreadCount = e.detail?.unread || 0;
     refreshSettingNewDot();
   });
+  window.addEventListener('install-availability-changed', refreshSettingNewDot);
   refreshSettingNewDot();
 }

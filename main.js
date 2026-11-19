@@ -81,6 +81,7 @@ import { initSettingNewDot, hasUnseenVersion, markVersionSeen } from './componen
 import { openHintListModal, renderHintHallOfFame } from './components/hint-handler.js';
 import { SEASONS, SEASON_META, WEATHER_META, getSeasonByDate, getApproxWeather } from './components/season-weather.js';
 import { startLetterStage } from './components/letter-stage.js';
+import { getTrailingStreak, showCombo } from './components/combo-fx.js';
 import {
   initAuthObserver,
   getActiveAuthProvider,
@@ -701,6 +702,7 @@ async function handleUserAnswer(selectedCharId, latency) {
     speed: latency
   });
   updateHistoryBarUI();
+  if (isCorrect) showCombo(getTrailingStreak(sessionHistory));
 
   if (!isCorrect) {
     await handleErrorFeedback(target.charId);
@@ -1965,7 +1967,13 @@ async function openRemoteModalPopup(viewName, options = {}) {
     overlay.innerHTML = isFullScreen ? `
       <div class="modal-content">
         <div class="modal-header full-screen-header">
-          <h3 class="modal-title">${isSetting ? 'CharQuiz' : modalTitle}</h3>
+          <div class="full-screen-title">
+            ${isSetting ? `
+            <button type="button" class="setting-tool-btn install-app-btn install-has-dot" data-i18n-title="setting.install" hidden>
+              <span class="material-symbols-outlined">install_desktop</span>
+            </button>` : ''}
+            <h3 class="modal-title">${isSetting ? 'CharQuiz' : modalTitle}</h3>
+          </div>
           <div class="setting-toolbar">
             ${isSetting ? `
             <button type="button" class="setting-tool-btn" id="setting-inbox-btn" data-i18n-title="setting.inbox">
@@ -1975,9 +1983,6 @@ async function openRemoteModalPopup(viewName, options = {}) {
             <button type="button" class="setting-tool-btn" id="setting-help-btn" data-i18n-title="setting.about">
               <span class="material-symbols-outlined">info</span>
               ${versionIsNew ? '<span class="setting-new-dot"></span>' : ''}
-            </button>
-            <button type="button" class="setting-tool-btn install-app-btn" data-i18n-title="setting.install" hidden>
-              <span class="material-symbols-outlined">install_mobile</span>
             </button>
             <button type="button" class="setting-tool-btn" id="setting-share-btn" data-i18n-title="setting.share">
               <span class="material-symbols-outlined">share</span>

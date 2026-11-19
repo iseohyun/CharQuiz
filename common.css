@@ -2724,3 +2724,82 @@ textarea,
 .app-version-box b {
   color: #0f172a;
 }
+
+/* 학습 모드 연속 정답 Combo (components/combo-fx.js) */
+.combo-fx {
+  position: fixed;
+  left: 50%;
+  top: 42%;
+  z-index: 1200;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  pointer-events: none;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-weight: 900;
+  color: #ec4899;
+  text-shadow: 0 2px 0 #ffffff, 0 6px 18px rgba(236, 72, 153, 0.45);
+  transform: translate(-50%, -50%);
+  animation: comboPop 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+}
+
+.combo-count {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.combo-word {
+  font-size: 1.4rem;
+  letter-spacing: 1px;
+}
+
+.combo-big {
+  color: #f59e0b;
+  text-shadow: 0 2px 0 #ffffff, 0 8px 24px rgba(245, 158, 11, 0.55);
+}
+
+.combo-big .combo-count {
+  font-size: 4.2rem;
+}
+
+.combo-spark {
+  font-size: 1.6rem;
+}
+
+@keyframes comboPop {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.4); }
+  25% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+  45% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; transform: translate(-50%, -65%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -80%) scale(0.95); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combo-fx {
+    animation: comboFade 0.9s ease forwards;
+  }
+  @keyframes comboFade {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
+
+/* 설정 화면 제목 왼쪽의 앱 설치 단추와 설치 전 빨간 점 */
+.full-screen-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.install-has-dot::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #ffffff;
+}

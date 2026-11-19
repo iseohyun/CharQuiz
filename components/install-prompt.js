@@ -5,6 +5,8 @@
  *
  * Chrome 의 자동 설치 안내(미니 바)는 막지 않는다. 사용자가 그 안내를 닫았어도 이 단추로 다시 설치할 수 있다.
  * 단추는 class="install-app-btn" 인 요소면 어디든 되고, 설치할 수 없을 때는 hidden 이 된다.
+ * 아이콘은 Android Chrome 의 「설치」와 같은 모양(모니터 + 오른쪽 위 아래 화살표, Material Symbols install_desktop)을 쓴다.
+ * 설치할 수 있는지가 바뀌면 window 에 'install-availability-changed'(detail.installable)를 보낸다.
  */
 
 let deferredPrompt = null;
@@ -22,6 +24,8 @@ export function canOfferInstall() {
 export function refreshInstallButtons() {
   const show = canOfferInstall();
   document.querySelectorAll('.install-app-btn').forEach((btn) => { btn.hidden = !show; });
+  // 설정 톱니의 new 점 등이 듣는다
+  window.dispatchEvent(new CustomEvent('install-availability-changed', { detail: { installable: show } }));
 }
 
 /** 설치창을 띄운다. 아이폰이면 안내를 보여 준다. */
@@ -47,7 +51,7 @@ export async function promptInstall() {
 export function renderInstallRowHtml() {
   return `
     <button type="button" class="install-app-btn install-app-row" ${canOfferInstall() ? '' : 'hidden'}>
-      <span class="material-symbols-outlined" aria-hidden="true">install_mobile</span>
+      <span class="material-symbols-outlined" aria-hidden="true">install_desktop</span>
       <span class="install-app-text"><strong>홈 화면에 앱 설치</strong><small>앱처럼 바로 열고 복습 알림도 받아요</small></span>
     </button>`;
 }
