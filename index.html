@@ -18,9 +18,11 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <script>
     window.APP_VERSION = "v1.0.5";
+    // 테마색(강조색)을 설정을 읽기 전부터 적용해 분홍이 잠깐 비치지 않게 한다 (main.js 의 applyAccentColor 가 적어 둠)
+    try { document.documentElement.dataset.accent = localStorage.getItem("CHARQUIZ_ACCENT") || "pink"; } catch (e) { /* 무시 */ }
     // 이 앱이 따르는 QuizApp Common GUI 판 (iseohyun.com 의 column/ai/quizapp-common-gui). 도움말 맨 아래에 보여 준다
     window.QUIZAPP_GUI_VERSION = "v0.2.0";
-    window.CACHE_BUST = "20261119v14";
+    window.CACHE_BUST = "20261119v16";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";

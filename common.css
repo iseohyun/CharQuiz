@@ -171,7 +171,7 @@ body {
   font-size: 1.15rem;
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, #ec4899 0%, #f43f5e 100%);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: white;
   border-radius: var(--radius-md);
   display: flex;
@@ -179,7 +179,7 @@ body {
   justify-content: center;
   font-weight: 900;
   -webkit-text-stroke: 0.6px #ffffff;
-  box-shadow: 0 4px 10px rgba(244, 63, 94, 0.3);
+  box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.3);
 }
 
 /* ??대㉧ 諛??곸뿭 */
@@ -578,7 +578,7 @@ body {
   padding: 6px 12px;
   border: none;
   border-radius: 8px;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   font-size: 13px;
   font-weight: 700;
@@ -650,7 +650,7 @@ body {
   padding: 4px 10px;
   border: none;
   border-radius: 4px;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   font-size: 12px;
   cursor: pointer;
@@ -1752,7 +1752,7 @@ textarea,
 .setting-check {
   width: 20px;
   height: 20px;
-  accent-color: #ec4899;
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -1765,7 +1765,7 @@ textarea,
   flex: 1;
   min-width: 0;
   cursor: pointer;
-  accent-color: #ec4899;
+  accent-color: var(--accent);
 }
 
 .setting-range-val {
@@ -1870,8 +1870,8 @@ textarea,
 }
 
 .inbox-item.unread {
-  border-color: #fbcfe8;
-  background: #fdf2f8;
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
 }
 
 .inbox-item-head {
@@ -1926,7 +1926,7 @@ textarea,
 
 .inbox-study {
   border: none;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   border-radius: 999px;
   padding: 7px 16px;
@@ -2019,7 +2019,7 @@ textarea,
 
 .hint-my-save {
   border: none;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   border-radius: 999px;
   padding: 7px 16px;
@@ -2088,7 +2088,7 @@ textarea,
 }
 
 .hint-item.is-mine {
-  border-color: #fbcfe8;
+  border-color: var(--accent-border);
 }
 
 .hint-item-text {
@@ -2118,9 +2118,9 @@ textarea,
 }
 
 .hint-like-btn.liked {
-  background: #fdf2f8;
+  background: var(--accent-soft);
   border-color: #f9a8d4;
-  color: #be185d;
+  color: var(--accent-dark);
 }
 
 .hint-like-btn:disabled {
@@ -2170,7 +2170,7 @@ textarea,
 
 .hint-my-box .hint-item.is-mine {
   margin-bottom: 0;
-  background: #fdf2f8;
+  background: var(--accent-soft);
 }
 
 .hint-my-inline-actions {
@@ -2286,11 +2286,11 @@ textarea,
 }
 
 .summary-domain.active {
-  background: #ec4899;
-  border-color: #ec4899;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #ffffff;
   cursor: default;
-  box-shadow: 0 4px 10px rgba(236, 72, 153, 0.3);
+  box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.3);
 }
 
 .summary-count {
@@ -2390,7 +2390,7 @@ textarea,
 .timeattack-result strong {
   font-size: 3rem;
   font-weight: 800;
-  color: #ec4899;
+  color: var(--accent);
   line-height: 1;
 }
 
@@ -2513,8 +2513,8 @@ textarea,
 }
 
 .progress-domain-tab.active {
-  background: #ec4899;
-  border-color: #ec4899;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #ffffff;
 }
 
@@ -2641,10 +2641,10 @@ textarea,
   margin-top: 12px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: #fdf2f8;
-  border: 1px solid #fbcfe8;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
   font-size: 0.8rem;
-  color: #831843;
+  color: var(--accent-deep);
   line-height: 1.45;
 }
 
@@ -2653,7 +2653,7 @@ textarea,
   border: none;
   border-radius: 999px;
   padding: 7px 14px;
-  background: #ec4899;
+  background: var(--accent);
   color: #ffffff;
   font-family: inherit;
   font-weight: 800;
@@ -2737,8 +2737,8 @@ textarea,
   pointer-events: none;
   font-family: 'Outfit', 'Noto Sans KR', sans-serif;
   font-weight: 900;
-  color: #ec4899;
-  text-shadow: 0 2px 0 #ffffff, 0 6px 18px rgba(236, 72, 153, 0.45);
+  color: var(--accent);
+  text-shadow: 0 2px 0 #ffffff, 0 6px 18px rgba(var(--accent-rgb), 0.45);
   transform: translate(-50%, -50%);
   animation: comboPop 0.9s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
 }
@@ -2842,8 +2842,8 @@ textarea,
 }
 
 .combo-range-tab.active {
-  background: #ec4899;
-  border-color: #ec4899;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #ffffff;
 }
 
@@ -2883,14 +2883,14 @@ textarea,
   width: 100%;
   max-width: 30px;
   min-height: 2px;
-  background: linear-gradient(180deg, #f472b6, #ec4899);
+  background: linear-gradient(180deg, var(--accent-light), var(--accent));
   border-radius: 4px 4px 0 0;
 }
 
 .combo-bar-value {
   font-size: 9px;
   font-weight: 800;
-  color: #ec4899;
+  color: var(--accent);
   min-height: 11px;
 }
 
@@ -2900,4 +2900,80 @@ textarea,
   color: #999;
   white-space: nowrap;
   min-height: 11px;
+}
+
+/* 강조색(설정 「시스템」의 테마색). 기본은 분홍, html[data-accent] 로 바꾼다. 바탕과 글자색은 그대로 */
+:root, html[data-accent="pink"] {
+  --accent: #ec4899;
+  --accent-light: #f472b6;
+  --accent-dark: #be185d;
+  --accent-deep: #831843;
+  --accent-soft: #fdf2f8;
+  --accent-border: #fbcfe8;
+  --accent-2: #f43f5e;
+  --accent-rgb: 236, 72, 153;
+}
+
+html[data-accent="blue"] {
+  --accent: #2563eb;
+  --accent-light: #60a5fa;
+  --accent-dark: #1d4ed8;
+  --accent-deep: #1e3a8a;
+  --accent-soft: #eff6ff;
+  --accent-border: #bfdbfe;
+  --accent-2: #0ea5e9;
+  --accent-rgb: 37, 99, 235;
+}
+
+html[data-accent="green"] {
+  --accent: #16a34a;
+  --accent-light: #4ade80;
+  --accent-dark: #15803d;
+  --accent-deep: #14532d;
+  --accent-soft: #f0fdf4;
+  --accent-border: #bbf7d0;
+  --accent-2: #0d9488;
+  --accent-rgb: 22, 163, 74;
+}
+
+html[data-accent="purple"] {
+  --accent: #7c3aed;
+  --accent-light: #a78bfa;
+  --accent-dark: #6d28d9;
+  --accent-deep: #4c1d95;
+  --accent-soft: #f5f3ff;
+  --accent-border: #ddd6fe;
+  --accent-2: #a855f7;
+  --accent-rgb: 124, 58, 237;
+}
+
+html[data-accent="orange"] {
+  --accent: #ea580c;
+  --accent-light: #fb923c;
+  --accent-dark: #c2410c;
+  --accent-deep: #7c2d12;
+  --accent-soft: #fff7ed;
+  --accent-border: #fed7aa;
+  --accent-2: #f59e0b;
+  --accent-rgb: 234, 88, 12;
+}
+
+/* 설정의 테마색 고르기 */
+.accent-swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.accent-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 1px #cbd5e1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.accent-swatch[aria-checked="true"] {
+  box-shadow: 0 0 0 2px #0f172a;
 }

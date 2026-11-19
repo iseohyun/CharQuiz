@@ -273,6 +273,7 @@ async function initApp() {
     applySavedConfig(await getUserConfig());
     comboState = await loadComboState();
     setLanguage(userConfig.uiLanguage);
+    applyAccentColor(userConfig.accentColor);
 
     window.currentDomain = userConfig.currentDomain;
     updateDomainUI();
@@ -2220,6 +2221,18 @@ async function openRemoteModalPopup(viewName, options = {}) {
         }
       };
 
+      // 테마색(강조색)
+      const accentSwatches = overlay.querySelectorAll('.accent-swatch');
+      const markAccent = () => accentSwatches.forEach((sw) => sw.setAttribute('aria-checked', String(sw.dataset.accent === (userConfig.accentColor || 'pink'))));
+      markAccent();
+      accentSwatches.forEach((sw) => sw.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userConfig.accentColor = sw.dataset.accent;
+        applyAccentColor(userConfig.accentColor);
+        markAccent();
+        saveUserConfig(userConfig);
+      }));
+
       const languageSelect = overlay.querySelector('#ui-language');
       if (languageSelect) {
         languageSelect.value = userConfig.uiLanguage || 'ko';
@@ -2278,6 +2291,16 @@ async function openRemoteModalPopup(viewName, options = {}) {
   } catch (error) {
     console.error("모달 수급 및 초기화 파이프라인 에러 발생:", error);
   }
+}
+
+const ACCENT_COLORS = ['pink', 'blue', 'green', 'purple', 'orange'];
+
+/** 테마색(강조색)을 화면 전체에 적용한다. 바탕·글자색은 그대로이고 버튼·선택 표시·콤보 등 강조 부분만 바뀐다 */
+function applyAccentColor(name) {
+  const accent = ACCENT_COLORS.includes(name) ? name : 'pink';
+  document.documentElement.dataset.accent = accent;
+  // index.html 이 다음에 열 때 설정을 읽기 전부터 같은 색으로 그리도록 기기에도 적어 둔다
+  try { localStorage.setItem('CHARQUIZ_ACCENT', accent); } catch { /* 무시 */ }
 }
 
 /** 설정 화면의 연령대 보기(10대 → 10s, 10代)를 지금 언어로 바꾼다. */

@@ -75,6 +75,16 @@
     </span>
   </div>
   <div class="setting-row">
+    <span class="setting-label" data-i18n="setting.accent">테마색</span>
+    <div class="accent-swatches" role="radiogroup" aria-label="테마색">
+      <button type="button" class="accent-swatch" role="radio" data-accent="pink" style="background:#ec4899" title="분홍" aria-label="분홍"></button>
+      <button type="button" class="accent-swatch" role="radio" data-accent="blue" style="background:#2563eb" title="파랑" aria-label="파랑"></button>
+      <button type="button" class="accent-swatch" role="radio" data-accent="green" style="background:#16a34a" title="초록" aria-label="초록"></button>
+      <button type="button" class="accent-swatch" role="radio" data-accent="purple" style="background:#7c3aed" title="보라" aria-label="보라"></button>
+      <button type="button" class="accent-swatch" role="radio" data-accent="orange" style="background:#ea580c" title="주황" aria-label="주황"></button>
+    </div>
+  </div>
+  <div class="setting-row">
     <label class="setting-label" for="weather-theme" data-i18n="setting.weatherTheme">날씨 반영</label>
     <input type="checkbox" id="weather-theme" class="setting-check" {{#if weatherTheme}}checked{{/if}}>
   </div>

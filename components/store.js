@@ -13,6 +13,7 @@ export const userConfig = {
   activeDomains: ['hira'], // 요약 카드에서 함께 고른 범위(같은 언어 묶음 안). 첫 번째가 currentDomain
   errorFeedbackMode: 'both',
   weatherTheme: true, // 처음 화면 무대에 대략의 날씨(IP 위치)를 반영할지 (components/season-weather.js)
+  accentColor: 'pink', // 테마색(강조색): 'pink' | 'blue' | 'green' | 'purple' | 'orange' (common.css 의 html[data-accent])
   uiLanguage: 'ko', // 화면 언어: 'ko' | 'en' | 'ja' (components/i18n.js)
   spectatorInterval: 1, // 관전모드 출력 주기 (초)
   voiceSource: 'google_mp3', // 음성 엔진 옵션: 'google_mp3', 'google_male_mp3', 'haruka_mp3', 'browser_tts'

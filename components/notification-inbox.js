@@ -8,7 +8,7 @@
  * DB 이름·저장소·필드는 서비스 워커와 같아야 한다.
  * 읽지 않은 수가 바뀌면 window 에 'charquiz-inbox-changed'(detail.unread)를 보낸다(설정 톱니의 new 점이 듣는다).
  */
-import { renderSisterAppsHtml } from './sister-apps.js';
+import { renderSisterAppsHtml, hydrateSisterApps } from './sister-apps.js';
 import { renderInstallRowHtml } from './install-prompt.js';
 
 const DB_NAME = 'charquiz-inbox';
@@ -170,6 +170,7 @@ export async function openInboxModal({ onStartStudy } = {}) {
     }
   });
   document.body.appendChild(overlay);
+  hydrateSisterApps(overlay);
 
   await markAllRead();
   updateInboxBadge();
