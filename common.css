@@ -2659,3 +2659,68 @@ textarea,
   font-weight: 800;
   cursor: pointer;
 }
+
+/* 「앱 설치」 단추 (components/install-prompt.js) */
+.install-app-btn[hidden] {
+  display: none !important;
+}
+
+.install-app-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 24px);
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  border: 1px solid #c7d2fe;
+  border-radius: 12px;
+  background: #eef2ff;
+  color: #312e81;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.install-app-row .material-symbols-outlined {
+  font-size: 1.6rem;
+  color: #4f46e5;
+}
+
+.install-app-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.install-app-text strong {
+  font-size: 0.88rem;
+}
+
+.install-app-text small {
+  font-size: 0.72rem;
+  color: #6366f1;
+}
+
+/* 도움말 맨 아래 버전 표시 */
+.app-version-box {
+  margin: 20px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  font-size: 0.82rem;
+}
+
+.app-version-box div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.app-version-box span {
+  color: #64748b;
+}
+
+.app-version-box b {
+  color: #0f172a;
+}

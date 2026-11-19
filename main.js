@@ -4,6 +4,7 @@
  * 세션 워크플로우(학습/기록/관전 모드), 타이머 루프, 원격 모달 마운트 및 전역 단축키 이벤트를 총괄 제어합니다.
  */
 
+import { refreshInstallButtons } from './components/install-prompt.js'; // 설치 신호(beforeinstallprompt)를 일찍 받아 둔다
 import {
   userConfig,
   resetUserConfig,
@@ -1952,7 +1953,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
     };
     const modalTitle = viewTitles[viewName] || '안내';
     const isSetting = viewName === 'setting';
-    const isFullScreen = ['setting', 'leaderboard', 'progress'].includes(viewName);
+    const isFullScreen = ['setting', 'leaderboard', 'progress', 'help'].includes(viewName);
     const versionIsNew = isSetting && hasUnseenVersion();
     const closeBtnHtml = `
             <button type="button" class="modal-close setting-tool-btn" data-i18n-title="setting.close">
@@ -1974,6 +1975,9 @@ async function openRemoteModalPopup(viewName, options = {}) {
             <button type="button" class="setting-tool-btn" id="setting-help-btn" data-i18n-title="setting.about">
               <span class="material-symbols-outlined">info</span>
               ${versionIsNew ? '<span class="setting-new-dot"></span>' : ''}
+            </button>
+            <button type="button" class="setting-tool-btn install-app-btn" data-i18n-title="setting.install" hidden>
+              <span class="material-symbols-outlined">install_mobile</span>
             </button>
             <button type="button" class="setting-tool-btn" id="setting-share-btn" data-i18n-title="setting.share">
               <span class="material-symbols-outlined">share</span>
@@ -2077,6 +2081,15 @@ async function openRemoteModalPopup(viewName, options = {}) {
       renderLoginModalState(auth.currentUser);
     }
 
+    if (viewName === 'help') {
+      overlay.querySelector('.modal-body')?.insertAdjacentHTML('beforeend', `
+        <div class="app-version-box">
+          <div><span>프로그램 버전</span><b>CharQuiz ${window.APP_VERSION || '-'}</b></div>
+          <div><span>빌드</span><b>${window.CACHE_BUST || '-'}</b></div>
+          <div><span>QuizApp Common GUI</span><b>${window.QUIZAPP_GUI_VERSION || '-'}</b></div>
+        </div>`);
+    }
+
     if (viewName === 'progress') {
       overlay.querySelector('#progress-help-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2094,6 +2107,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
     if (viewName === 'setting') {
       applyI18n(overlay);
       localizeSettingOptions(overlay);
+      refreshInstallButtons();
       markVersionSeen();
       updateInboxBadge();
 

@@ -18,7 +18,9 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <script>
     window.APP_VERSION = "v1.0.5";
-    window.CACHE_BUST = "20261119v8";
+    // 이 앱이 따르는 QuizApp Common GUI 판 (iseohyun.com 의 column/ai/quizapp-common-gui). 도움말 맨 아래에 보여 준다
+    window.QUIZAPP_GUI_VERSION = "v0.1.0";
+    window.CACHE_BUST = "20261119v10";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
@@ -31,7 +33,7 @@
     (function registerVersionedImportMap() {
       const componentModules = [
         "app-config", "audio-manager", "auth-handler", "date-utils", "db-handler", "engine",
-        "firebase-config", "hint-handler", "hint-seeds", "i18n", "keybind-manager", "legacy-migration", "letter-stage", "new-dot", "notification-handler", "notification-inbox", "season-weather", "sister-apps", "storage-migration",
+        "firebase-config", "hint-handler", "hint-seeds", "i18n", "install-prompt", "keybind-manager", "legacy-migration", "letter-stage", "new-dot", "notification-handler", "notification-inbox", "season-weather", "sister-apps", "storage-migration",
         "store", "ui-modal-handler", "update-checker"
       ];
       const imports = {};
