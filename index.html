@@ -18,7 +18,7 @@
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
   <script>
     window.APP_VERSION = "v1.0.5";
-    window.CACHE_BUST = "20261119v1";
+    window.CACHE_BUST = "20261119v2";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
@@ -31,7 +31,7 @@
     (function registerVersionedImportMap() {
       const componentModules = [
         "app-config", "audio-manager", "auth-handler", "date-utils", "db-handler", "engine",
-        "firebase-config", "i18n", "keybind-manager", "new-dot", "notification-handler", "notification-inbox", "storage-migration",
+        "firebase-config", "hint-handler", "hint-seeds", "i18n", "keybind-manager", "new-dot", "notification-handler", "notification-inbox", "storage-migration",
         "store", "ui-modal-handler", "update-checker"
       ];
       const imports = {};
@@ -86,10 +86,6 @@
           <span class="keybind-badge" id="kb-badge-popupProgress">3</span>
           <span id="review-count-badge" class="review-count-badge" style="display: none;"></span>
         </div>
-        <div class="menu-item" onclick="playSoundTest()" data-tooltip="소리 테스트" data-i18n-title="menu.soundTest">
-          <span class="material-symbols-outlined">sound_detection_loud_sound</span>
-          <span class="keybind-badge" id="kb-badge-playSoundTest">2</span>
-        </div>
         <div class="menu-item" onclick="toggleDomain()" data-tooltip="히라가나/카타카나 전환" data-i18n-title="menu.toggleDomain">
           <span class="domain-btn">あ</span>
           <span class="keybind-badge" id="kb-badge-toggleDomain">1</span>
@@ -113,14 +109,17 @@
           <span class="keybind-badge" id="kb-badge-startStudy">Q</span>
         </button>
 
-        <button class="mode-btn mode-record" onclick="startSessionWorkflow('record')">
-          <div class="mode-btn-content">
-            <span class="material-symbols-outlined mode-icon">timer</span>
-            <span class="mode-title" data-i18n="mode.record">기록 모드</span>
-            <span class="mode-desc" data-i18n="mode.recordDesc">타임어택으로 암기 속도 측정</span>
-          </div>
-          <span class="keybind-badge" id="kb-badge-startRecord">W</span>
-        </button>
+        <div class="mode-btn mode-record mode-split">
+          <button type="button" class="mode-split-half" onclick="startSessionWorkflow('record')">
+            <span class="material-symbols-outlined mode-split-icon">timer</span>
+            <span class="mode-split-title" data-i18n="mode.record20">20문제 타임어택</span>
+            <span class="keybind-badge" id="kb-badge-startRecord">W</span>
+          </button>
+          <button type="button" class="mode-split-half" onclick="startSessionWorkflow('timeattack')">
+            <span class="material-symbols-outlined mode-split-icon">avg_pace</span>
+            <span class="mode-split-title" data-i18n="mode.record30">30초 타임어택</span>
+          </button>
+        </div>
 
         <button class="mode-btn mode-spectator" onclick="startSessionWorkflow('spectator')">
           <div class="mode-btn-content">
@@ -131,13 +130,7 @@
           <span class="keybind-badge" id="kb-badge-startSpectator">E</span>
         </button>
 
-        <div class="mode-info-card">
-          <span class="material-symbols-outlined info-card-icon">auto_awesome</span>
-          <div class="info-card-text">
-            <strong>CharQuiz</strong>
-            <p data-i18n="mode.info">단축키(Q, W, E, 1~5)와 퀴즈 루프로 빠르게 가나를 마스터하세요.</p>
-          </div>
-        </div>
+        <div class="mode-info-card domain-summary" id="domain-summary"></div>
       </div>
     </div>
   </div>

@@ -1547,14 +1547,14 @@ textarea,
   display: none;
 }
 
-.modal-overlay.setting-screen {
+.modal-overlay.full-screen {
   background: #fcfdff;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   align-items: stretch;
 }
 
-.setting-screen .modal-content {
+.full-screen .modal-content {
   width: 100%;
   max-width: none;
   height: 100%;
@@ -1567,8 +1567,8 @@ textarea,
   animation: fadeIn 0.18s ease;
 }
 
-.setting-screen .modal-header,
-.setting-screen .modal-body {
+.full-screen .modal-header,
+.full-screen .modal-body {
   width: 100%;
   max-width: 720px;
   margin-left: auto;
@@ -1576,7 +1576,7 @@ textarea,
   box-sizing: border-box;
 }
 
-.setting-screen-header {
+.full-screen-header {
   gap: 12px;
   margin-bottom: 8px;
   padding-bottom: 10px;
@@ -1932,4 +1932,558 @@ textarea,
   padding: 7px 16px;
   font-weight: 800;
   cursor: pointer;
+}
+
+/* ==========================================================================
+   글자 힌트 (NameQuiz 와 같은 모양)
+   ========================================================================== */
+.hint-list-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1300;
+  animation: fadeIn 0.18s ease;
+}
+
+.hint-list-card {
+  width: min(440px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.25);
+  overflow: hidden;
+}
+
+.hint-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.hint-list-header h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.hint-list-close {
+  border: none;
+  background: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.hint-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 12px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.hint-item {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid #f1f5f9;
+  margin-bottom: 8px;
+}
+
+.hint-list-empty {
+  padding: 24px 8px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.hint-my-delete {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  border-radius: 999px;
+  padding: 7px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hint-my-save {
+  border: none;
+  background: #ec4899;
+  color: #ffffff;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hint-my-save:disabled,
+.hint-my-delete:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.hint-meta {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hint-my-box {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.hint-my-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.hint-my-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+
+.hint-my-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.hint-my-count {
+  margin-right: auto;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.hint-login-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.hint-item.is-seed {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.hint-item.is-mine {
+  border-color: #fbcfe8;
+}
+
+.hint-item-text {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  line-height: 1.45;
+  word-break: break-all;
+}
+
+.hint-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hint-like-btn {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #475569;
+  cursor: pointer;
+}
+
+.hint-like-btn.liked {
+  background: #fdf2f8;
+  border-color: #f9a8d4;
+  color: #be185d;
+}
+
+.hint-like-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.prompt-hint-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: 100%;
+}
+
+.prompt-hint-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #b45309;
+  cursor: pointer;
+}
+
+.prompt-hint-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.prompt-hint-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.hint-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.hint-list-scroll .hint-list {
+  overflow: visible;
+}
+
+.hint-my-box .hint-item.is-mine {
+  margin-bottom: 0;
+  background: #fdf2f8;
+}
+
+.hint-my-inline-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.hint-my-edit,
+.hint-my-cancel,
+.hint-my-inline-actions .hint-my-delete {
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.hint-my-cancel {
+  padding: 7px 14px;
+  font-size: inherit;
+}
+
+/* ==========================================================================
+   처음 화면: 기록 모드 두 갈래, 학습범위 요약 카드
+   ========================================================================== */
+.mode-btn.mode-split {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+  cursor: default;
+}
+
+.mode-btn.mode-split:hover {
+  transform: none;
+}
+
+.mode-split-half {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 18px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.mode-split-half + .mode-split-half {
+  border-top: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.mode-split-half:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.mode-split-half:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.mode-split-icon {
+  font-size: 1.8rem !important;
+  font-variation-settings: 'FILL' 1, 'wght' 600;
+}
+
+.mode-split-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.mode-info-card.domain-summary {
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+}
+
+.summary-lang {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.summary-domains {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summary-domain {
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #94a3b8;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.summary-domain.active {
+  background: #ec4899;
+  border-color: #ec4899;
+  color: #ffffff;
+  cursor: default;
+  box-shadow: 0 4px 10px rgba(236, 72, 153, 0.3);
+}
+
+.summary-count {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.summary-count b {
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+/* ==========================================================================
+   작은 안내 창(학습 결과, 30초 결과, 학습현황 도움말)
+   ========================================================================== */
+.info-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1300;
+  animation: fadeIn 0.18s ease;
+}
+
+.info-overlay-body {
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+}
+
+.study-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.study-summary-table th {
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 700;
+  padding: 6px 4px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.study-summary-table td {
+  padding: 7px 4px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.study-summary-table .sum-char {
+  font-size: 1.1rem;
+  font-weight: 800;
+}
+
+.study-summary-table tfoot td {
+  font-weight: 800;
+  border-top: 2px solid #e2e8f0;
+  border-bottom: none;
+}
+
+.sum-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.sum-new { background: #e0f2fe; color: #0369a1; }
+.sum-up { background: #dcfce7; color: #15803d; }
+.sum-down { background: #fee2e2; color: #b91c1c; }
+.sum-risk { background: #fef3c7; color: #b45309; }
+
+.study-summary-note {
+  margin: 10px 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.timeattack-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 0 4px;
+}
+
+.timeattack-result strong {
+  font-size: 3rem;
+  font-weight: 800;
+  color: #ec4899;
+  line-height: 1;
+}
+
+.progress-help-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: #334155;
+}
+
+.progress-help-list li + li {
+  margin-top: 6px;
+}
+
+/* 설정 화면 소리 테스트 줄 */
+.setting-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.setting-play-btn .material-symbols-outlined {
+  font-size: 1.1rem;
+}
+
+/* 학습 모드 문제 화면: 발음 단추 옆 💡 */
+.audio-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.quiz-hint-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  color: #d97706;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.quiz-hint-btn[hidden] {
+  display: none;
+}
+
+.quiz-hint-btn .material-symbols-outlined {
+  font-size: 1.5rem;
+  font-variation-settings: 'FILL' 1;
+}
+
+/* 리더보드 「힌트 따봉」 탭 (hint-handler.js 의 renderHintHallOfFame) */
+.leaderboard-empty {
+  text-align: center;
+  padding: 30px;
+  color: #777;
+}
+
+.highlight-row {
+  background-color: #fff9c4;
+}
+
+.leaderboard-table td.rank-top {
+  font-weight: bold;
+  color: #ff9800;
+}
+
+.leaderboard-table td.lb-name {
+  font-weight: bold;
+  color: #333;
+}
+
+.leaderboard-table td {
+  text-align: center;
+}
+
+/* 학습현황 표의 글자: 길게 누를 때 선택·확대가 끼어들지 않게 */
+#progress-table td {
+  touch-action: manipulation;
 }

@@ -48,7 +48,7 @@
     </span>
   </div>
   <div class="setting-row">
-    <label class="setting-label" for="pool-size" data-i18n="setting.poolSize">1회당 글자 수</label>
+    <label class="setting-label" for="pool-size" data-i18n="setting.poolSize">1회당 문제 수</label>
     <input type="number" id="pool-size" class="setting-number" min="1" max="100" value="{{MAX_POOL_SIZE}}">
   </div>
   <div class="setting-row">
@@ -73,6 +73,13 @@
         oninput="updateSpeechFromSlider(this.value)">
       <span class="setting-range-val"><span id="speech-val-display">{{speechRate}}</span>×</span>
     </span>
+  </div>
+  <div class="setting-row">
+    <span class="setting-label" data-i18n="setting.soundTest">소리 테스트</span>
+    <button type="button" id="setting-sound-test" class="setting-play-btn">
+      <span class="material-symbols-outlined" aria-hidden="true">volume_up</span>
+      <span data-i18n="setting.play">듣기</span>
+    </button>
   </div>
   <div class="setting-row">
     <label class="setting-label" for="voice-source" data-i18n="setting.voice">음성 모델</label>

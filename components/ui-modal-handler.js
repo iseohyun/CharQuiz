@@ -154,6 +154,39 @@ export function getStageColor(stage) {
   return colors[Math.min(stage, 8)];
 }
 
+const LONG_PRESS_MS = 550;
+const LONG_PRESS_MOVE_PX = 10;
+
+/**
+ * 길게 누르기. 손을 떼기 전에 LONG_PRESS_MS 가 지나면 onLongPress 를 부르고,
+ * 뒤따르는 click 은 el.dataset.longPressed 로 한 번 무시하게 한다.
+ */
+function bindLongPress(el, onLongPress) {
+  let timer = null;
+  let startX = 0;
+  let startY = 0;
+  const cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+  el.addEventListener('pointerdown', (e) => {
+    startX = e.clientX;
+    startY = e.clientY;
+    el.dataset.longPressed = '';
+    cancel();
+    timer = setTimeout(() => {
+      timer = null;
+      el.dataset.longPressed = '1';
+      onLongPress();
+    }, LONG_PRESS_MS);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (Math.abs(e.clientX - startX) > LONG_PRESS_MOVE_PX || Math.abs(e.clientY - startY) > LONG_PRESS_MOVE_PX) cancel();
+  });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((type) => el.addEventListener(type, cancel));
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
 export function renderProgressTable(domain, domainProgress) {
   const table = document.getElementById('progress-table');
   const countLabel = document.getElementById('settings-active-count');
@@ -253,7 +286,13 @@ export function renderProgressTable(domain, domainProgress) {
         `;
       }
 
+      // 길게 누르면 그 글자의 힌트 목록, 짧게 누르면 초기화·해금
+      bindLongPress(td, () => window.openCharHintList?.(domain, charName));
       td.onclick = () => {
+        if (td.dataset.longPressed === '1') {
+          td.dataset.longPressed = '';
+          return;
+        }
         if (hasProgress) {
           if (confirm(`[${charName}] 기록을 초기화할까요?`)) window.resetSingleCharProgress?.(domain, cId);
         } else {
@@ -296,21 +335,26 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
     return;
   }
 
-  const btnSpeedrun = document.getElementById('tab-speedrun');
-  const btnStudy = document.getElementById('tab-study');
-  if (btnSpeedrun && btnStudy) {
-    if (mode === 'study') {
-      btnSpeedrun.classList.remove('active');
-      btnStudy.classList.add('active');
-    } else {
-      btnSpeedrun.classList.add('active');
-      btnStudy.classList.remove('active');
-    }
-  }
+  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+    document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
+  });
+  // 힌트 따봉 탭은 hint-handler.js 의 renderHintHallOfFame 이 표를 그린다
+  if (mode === 'hints') return;
 
   const headerContainer = document.getElementById('leaderboard-header');
   if (headerContainer) {
-    if (mode === 'study') {
+    if (mode === 'timeattack') {
+      headerContainer.innerHTML = `
+        <tr>
+          <th>순위</th>
+          <th>아이디</th>
+          <th>도메인</th>
+          <th>맞힘 (푼 수)</th>
+          <th>정답률</th>
+          <th>완료 시각</th>
+        </tr>
+      `;
+    } else if (mode === 'study') {
       headerContainer.innerHTML = `
         <tr>
           <th>순위</th>
@@ -375,7 +419,18 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
     const isHighlighted = window.highlightRecordId && window.highlightRecordId === entry.id;
     const trStyle = isHighlighted ? 'background-color: #fff9c4;' : '';
 
-    if (mode === 'study') {
+    if (mode === 'timeattack') {
+      html += `
+        <tr style="${trStyle}">
+          <td style="text-align:center; ${rankStyle} font-size:16px;">${rank}</td>
+          <td style="font-weight:bold; color:#333; text-align:center;">${safeName}</td>
+          <td style="text-align:center;">${domainDisplay}</td>
+          <td style="text-align:center; font-weight:bold; color:#4CAF50;">${Number(entry.correctCount) || 0} <span style="font-size:11px; color:#999;">(${Number(entry.solvedCount) || 0})</span></td>
+          <td style="text-align:center;">${Number(entry.accuracy) || 0}%</td>
+          <td style="text-align:center; font-size:11px; color:#aaa;">${safeUpdatedAt}</td>
+        </tr>
+      `;
+    } else if (mode === 'study') {
       html += `
         <tr style="${trStyle}">
           <td style="text-align:center; ${rankStyle} font-size:16px;">${rank}</td>

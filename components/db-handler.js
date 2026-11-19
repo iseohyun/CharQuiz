@@ -792,3 +792,52 @@ export const mergeGuestProgress = async (items) => {
 
   return items.length;
 };
+
+/**
+ * 기록 모드 「30초 타임어택」 기록 한 건을 남긴다. 기록마다 새 문서(수정·삭제는 관리자만).
+ * @returns {Promise<string|undefined>} 남긴 문서 ID
+ */
+export const submitTimeAttackRanking = async (domain, correctCount, solvedCount, accuracy, customName = null) => {
+  if (!currentUserUid) return;
+
+  let displayName = customName;
+  if (!displayName) {
+    const userNameDisplay = document.getElementById('profile-name');
+    displayName = userNameDisplay ? userNameDisplay.innerText : "게스트";
+  }
+
+  const docId = `${currentUserUid}_${domain}_${Date.now()}`;
+  await setDoc(doc(db, 'timeattack_rankings', docId), {
+    uid: currentUserUid,
+    name: displayName,
+    domain,
+    correctCount,
+    solvedCount,
+    accuracy,
+    durationSec: 30,
+    updatedAt: Date.now()
+  });
+  return docId;
+};
+
+/**
+ * 30초 타임어택 순위. 맞힌 수가 많은 순, 같으면 정답률이 높은 순.
+ * 복합 인덱스 없이 쓰도록 맞힌 수 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
+ */
+export const getTimeAttackRankings = async (limitCount = 10, targetDomain = 'all') => {
+  const snapshot = await getDocs(query(collection(db, 'timeattack_rankings'), orderBy('correctCount', 'desc'), limit(300)));
+  const pad = (n) => n.toString().padStart(2, '0');
+  return snapshot.docs
+    .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+    .filter((data) => targetDomain === 'all' || data.domain === targetDomain)
+    .sort((a, b) => (b.correctCount - a.correctCount) || (b.accuracy - a.accuracy) || (a.updatedAt - b.updatedAt))
+    .slice(0, limitCount)
+    .map((data) => {
+      const d = new Date(data.updatedAt);
+      return {
+        ...data,
+        elapsedStr: '00:30',
+        updatedAt: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+      };
+    });
+};

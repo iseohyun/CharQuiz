@@ -37,6 +37,16 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // 기록 모드 「30초 타임어택」: 기록마다 새 문서
+    match /timeattack_rankings/{rankingId} {
+      allow read: if true;
+      allow create: if request.resource.data.correctCount is int
+        && request.resource.data.correctCount >= 0
+        && request.resource.data.correctCount <= 200
+        && request.resource.data.durationSec == 30;
+      allow update, delete: if isAdmin();
+    }
+
     // 5. 사용자 환경설정 문서 규칙
     match /users/{uid} {
       // 목록 조회(list)는 허용하지 않고 본인 문서의 단건 조회/쓰기만 허용합니다.
@@ -135,6 +145,80 @@ service cloud.firestore {
           !existsAfter(hintPath(resource.data.hintId))
           || getAfter(hintPath(resource.data.hintId)).data.rev != resource.data.rev
           || getAfter(hintPath(resource.data.hintId)).data.likeCount == get(hintPath(resource.data.hintId)).data.likeCount - 1
+        );
+    }
+
+    // 8. CharQuiz 글자 힌트 (CharQuiz/components/hint-handler.js). 7번과 같은 방식, 문서 ID = domain__글자__uid
+    function charHintPath(hintId) {
+      return /databases/$(database)/documents/char_hints/$(hintId);
+    }
+    function charHintLikePath(likeId) {
+      return /databases/$(database)/documents/char_hint_likes/$(likeId);
+    }
+
+    match /char_hints/{hintId} {
+      allow read: if true;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['charKey', 'domain', 'char', 'uid', 'authorName', 'text', 'likeCount', 'rev', 'createdAt', 'updatedAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.domain in ['hira', 'kata', 'hangle', 'ENGLISH', 'english']
+        && request.resource.data.char is string
+        && request.resource.data.char.size() > 0
+        && request.resource.data.char.size() <= 4
+        && request.resource.data.charKey == request.resource.data.domain + '__' + request.resource.data.char
+        && hintId == request.resource.data.charKey + '__' + request.auth.uid
+        && isValidHintText(request.resource.data.text)
+        && isValidAuthorName(request.resource.data.authorName)
+        && request.resource.data.likeCount == 0
+        && request.resource.data.rev is string
+        && request.resource.data.rev.size() > 0
+        && request.resource.data.rev.size() <= 20;
+
+      allow update: if request.auth != null && (
+        // 작성자: 글, 이름, 고친 때만
+        (resource.data.uid == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'authorName', 'updatedAt'])
+          && isValidHintText(request.resource.data.text)
+          && isValidAuthorName(request.resource.data.authorName))
+        ||
+        // 다른 사용자: 따봉 문서를 만들거나 지우면서 likeCount 를 1만 바꿈
+        (resource.data.uid != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount'])
+          && (
+            (request.resource.data.likeCount == resource.data.likeCount + 1
+              && !exists(charHintLikePath(hintId + '__' + resource.data.rev + '__' + request.auth.uid))
+              && existsAfter(charHintLikePath(hintId + '__' + resource.data.rev + '__' + request.auth.uid)))
+            ||
+            (request.resource.data.likeCount == resource.data.likeCount - 1
+              && exists(charHintLikePath(hintId + '__' + resource.data.rev + '__' + request.auth.uid))
+              && !existsAfter(charHintLikePath(hintId + '__' + resource.data.rev + '__' + request.auth.uid)))
+          ))
+      );
+
+      allow delete: if request.auth != null && (resource.data.uid == request.auth.uid || isAdmin());
+    }
+
+    match /char_hint_likes/{likeId} {
+      // 본인 따봉만 조회 (where uid == 내 uid)
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['hintId', 'rev', 'uid', 'charKey', 'createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && likeId == request.resource.data.hintId + '__' + request.resource.data.rev + '__' + request.auth.uid
+        && getAfter(charHintPath(request.resource.data.hintId)).data.rev == request.resource.data.rev
+        && getAfter(charHintPath(request.resource.data.hintId)).data.charKey == request.resource.data.charKey
+        && getAfter(charHintPath(request.resource.data.hintId)).data.uid != request.auth.uid
+        && getAfter(charHintPath(request.resource.data.hintId)).data.likeCount == get(charHintPath(request.resource.data.hintId)).data.likeCount + 1;
+
+      // 취소: likeCount 를 같이 1 줄이거나, 힌트가 지워졌거나 새로 올려져(rev 가 다름) 남은 따봉일 때
+      allow delete: if request.auth != null
+        && resource.data.uid == request.auth.uid
+        && (
+          !existsAfter(charHintPath(resource.data.hintId))
+          || getAfter(charHintPath(resource.data.hintId)).data.rev != resource.data.rev
+          || getAfter(charHintPath(resource.data.hintId)).data.likeCount == get(charHintPath(resource.data.hintId)).data.likeCount - 1
         );
     }
   }

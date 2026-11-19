@@ -38,7 +38,9 @@ import {
   toPersistedSchema,
   findGuestProgressToMerge,
   markGuestMergeHandled,
-  mergeGuestProgress
+  mergeGuestProgress,
+  submitTimeAttackRanking,
+  getTimeAttackRankings
 } from './components/db-handler.js';
 import {
   generateKeybindingsHtml,
@@ -51,6 +53,7 @@ import {
   generateFourOptions,
   calculateReviewState,
   isDueForReview,
+  getFlattenedDataset,
   ALPHABETS,
   INTERVALS
 } from './components/engine.js';
@@ -74,6 +77,7 @@ import { APP_BASE_URL } from './components/app-config.js';
 import { UI_LANGUAGES, applyI18n, setLanguage, t } from './components/i18n.js';
 import { initNotificationInbox, openInboxModal, updateInboxBadge } from './components/notification-inbox.js';
 import { initSettingNewDot, hasUnseenVersion, markVersionSeen } from './components/new-dot.js';
+import { openHintListModal, renderHintHallOfFame } from './components/hint-handler.js';
 import {
   initAuthObserver,
   getActiveAuthProvider,
@@ -130,14 +134,17 @@ const MAIN_SELECTION_HTML = `
       <span class="keybind-badge" id="kb-badge-startStudy">Q</span>
     </button>
 
-    <button class="mode-btn mode-record" onclick="startSessionWorkflow('record')">
-      <div class="mode-btn-content">
-        <span class="material-symbols-outlined mode-icon">timer</span>
-        <span class="mode-title" data-i18n="mode.record">기록 모드</span>
-        <span class="mode-desc" data-i18n="mode.recordDesc">타임어택으로 암기 속도 측정</span>
-      </div>
-      <span class="keybind-badge" id="kb-badge-startRecord">W</span>
-    </button>
+    <div class="mode-btn mode-record mode-split">
+      <button type="button" class="mode-split-half" onclick="startSessionWorkflow('record')">
+        <span class="material-symbols-outlined mode-split-icon">timer</span>
+        <span class="mode-split-title" data-i18n="mode.record20">20문제 타임어택</span>
+        <span class="keybind-badge" id="kb-badge-startRecord">W</span>
+      </button>
+      <button type="button" class="mode-split-half" onclick="startSessionWorkflow('timeattack')">
+        <span class="material-symbols-outlined mode-split-icon">avg_pace</span>
+        <span class="mode-split-title" data-i18n="mode.record30">30초 타임어택</span>
+      </button>
+    </div>
 
     <button class="mode-btn mode-spectator" onclick="startSessionWorkflow('spectator')">
       <div class="mode-btn-content">
@@ -148,17 +155,14 @@ const MAIN_SELECTION_HTML = `
       <span class="keybind-badge" id="kb-badge-startSpectator">E</span>
     </button>
 
-    <div class="mode-info-card">
-      <span class="material-symbols-outlined info-card-icon">auto_awesome</span>
-      <div class="info-card-text">
-        <strong>CharQuiz</strong>
-        <p data-i18n="mode.info">단축키(Q, W, E, 1~5)와 퀴즈 루프로 빠르게 가나를 마스터하세요.</p>
-      </div>
-    </div>
+    <div class="mode-info-card domain-summary" id="domain-summary"></div>
   </div>
 `;
 
-let currentMode = 'study'; // 'study', 'record', 'spectator'
+let currentMode = 'study'; // 'study', 'record'(20문제), 'timeattack'(30초), 'spectator'
+const SPEEDRUN_MAX_QUESTIONS = 20;
+const TIME_ATTACK_SECONDS = 30;
+let sessionStartSnapshot = {}; // 학습 시작 때 글자별 {stage, hadHistory, avgBefore}
 let currentPool = [];
 let currentQuestion = null;
 let sessionHistory = [];
@@ -410,6 +414,7 @@ window.startSessionWorkflow = async function (mode) {
   try {
     const versionQuery = (window.CACHE_BUST || window.APP_VERSION) ? `?v=${window.CACHE_BUST || window.APP_VERSION}` : '';
     const viewFile = mode === 'spectator' ? 'spectatorMode' : 'studyMode';
+    const isRecordMode = mode === 'record' || mode === 'timeattack';
     const response = await fetch(`./view/${viewFile}.html${versionQuery}`);
     if (!response.ok) throw new Error(`${viewFile}.html 수급 실패`);
 
@@ -449,8 +454,8 @@ window.startSessionWorkflow = async function (mode) {
         title.innerText = '학습 모드';
         badge.className = 'mode-badge study';
         if (badgeIcon) badgeIcon.innerText = 'school';
-      } else if (mode === 'record') {
-        title.innerText = '기록 모드';
+      } else if (isRecordMode) {
+        title.innerText = mode === 'timeattack' ? t('mode.record30') : t('mode.record20');
         badge.className = 'mode-badge record';
         if (badgeIcon) badgeIcon.innerText = 'timer';
       } else if (mode === 'spectator') {
@@ -464,6 +469,8 @@ window.startSessionWorkflow = async function (mode) {
       await startQuizSession();
     } else if (mode === 'record') {
       await startSpeedrunSession();
+    } else if (mode === 'timeattack') {
+      await startTimeAttackSession();
     } else if (mode === 'spectator') {
       await startSpectatorSession();
     }
@@ -536,8 +543,14 @@ async function startQuizSession() {
   }
 
   initialStages = {};
+  sessionStartSnapshot = {};
   currentPool.forEach(item => {
     initialStages[item.charId] = item.stage;
+    sessionStartSnapshot[item.charId] = {
+      stage: item.stage,
+      hadHistory: (item.totalSolved || 0) > 0,
+      avgBefore: averageLatencySec(item)
+    };
   });
 
   const userInfoRight = document.querySelector('.user-info-right');
@@ -585,6 +598,25 @@ async function renderNextQuestion() {
   questionStartTime = Date.now();
 
   renderOptionButtons(optionsContainer, handleUserAnswer);
+  bindQuizHintButton();
+}
+
+/**
+ * 학습 모드 문제 화면의 💡: 지금 문제 글자의 힌트 목록을 연다. 여는 동안 풀이 시간을 멈춘다.
+ */
+function bindQuizHintButton() {
+  const hintBtn = document.getElementById('quiz-hint-btn');
+  if (!hintBtn) return;
+  hintBtn.hidden = currentMode !== 'study';
+  hintBtn.onclick = () => {
+    const target = currentQuestion?.target;
+    if (!target || isTimeUp) return;
+    const pausedByHint = !isPaused;
+    if (pausedByHint) window.pauseGameTrigger();
+    openHintListModal(userConfig.currentDomain, target.char, {
+      onClose: () => { if (pausedByHint && isPaused) window.pauseGameTrigger(); }
+    });
+  };
 }
 
 /**
@@ -605,6 +637,7 @@ async function handleUserAnswer(selectedCharId, latency) {
   updatePoolIndicatorUI();
 
   sessionHistory.push({
+    charId: target.charId,
     char: target.char,
     isCorrect: isCorrect,
     speed: latency
@@ -683,6 +716,7 @@ async function terminateQuizSession() {
   }
 
   resetToMainModeSelection();
+  showStudySummary();
 
   // 복습 알림 예약은 Firestore 저장과 따로 먼저 시작한다.
   // 연결이 나쁘면 Firestore 저장이 끝나지 않고 멈춰 있어, 그 뒤에 두면 예약 요청이 아예 나가지 않는다.
@@ -722,6 +756,95 @@ async function terminateQuizSession() {
   }
 }
 
+/** 최근 응답 속도 평균(초). 기록이 없으면 null */
+function averageLatencySec(item) {
+  const list = item?.recentLatencies || [];
+  if (!list.length) return null;
+  return list.reduce((a, b) => a + b, 0) / list.length / 1000;
+}
+
+/**
+ * 학습이 끝난 뒤 문제별 요약과 총합. 글자 | 맞힘/푼 수 | 평균 응답속도 이전 → 이번 | 상태
+ * 상태: 새문자(처음 나온 글자), 승급, 강급, 강급후보(틀렸거나 느려짐), 유지
+ */
+function showStudySummary() {
+  const byChar = new Map();
+  sessionHistory.forEach((h) => {
+    const row = byChar.get(h.charId) || { charId: h.charId, char: h.char, correct: 0, solved: 0 };
+    row.solved += 1;
+    if (h.isCorrect) row.correct += 1;
+    byChar.set(h.charId, row);
+  });
+  if (byChar.size === 0) return;
+
+  const fmt = (v) => (v === null || v === undefined ? '-' : v.toFixed(1));
+  const rows = [...byChar.values()].map((row) => {
+    const before = sessionStartSnapshot[row.charId] || { stage: 0, hadHistory: false, avgBefore: null };
+    const item = currentPool.find((p) => p.charId === row.charId);
+    const avgAfter = averageLatencySec(item);
+    const stageAfter = item ? item.stage : before.stage;
+    let status = 'keep';
+    if (!before.hadHistory) status = 'new';
+    else if (stageAfter > before.stage) status = 'up';
+    else if (stageAfter < before.stage) status = 'down';
+    else if (row.correct < row.solved || (before.avgBefore !== null && avgAfter !== null && avgAfter > before.avgBefore)) status = 'risk';
+    return { ...row, avgBefore: before.hadHistory ? before.avgBefore : null, avgAfter, status };
+  });
+
+  const mean = (list) => (list.length ? list.reduce((a, b) => a + b, 0) / list.length : null);
+  const total = {
+    correct: rows.reduce((n, r) => n + r.correct, 0),
+    solved: rows.reduce((n, r) => n + r.solved, 0),
+    avgBefore: mean(rows.map((r) => r.avgBefore).filter((v) => v !== null)),
+    avgAfter: mean(rows.map((r) => r.avgAfter).filter((v) => v !== null))
+  };
+
+  const statusLabel = { new: '새문자', up: '승급', down: '강급', risk: '강급후보', keep: '유지' };
+  const body = rows.map((r) => `
+    <tr>
+      <td class="sum-char">${r.char}</td>
+      <td>${r.correct} / ${r.solved}</td>
+      <td>${fmt(r.avgBefore)} → ${fmt(r.avgAfter)}</td>
+      <td><span class="sum-status sum-${r.status}">${statusLabel[r.status]}</span></td>
+    </tr>`).join('');
+
+  showInfoOverlay('학습 결과', `
+    <table class="study-summary-table">
+      <thead><tr><th>글자</th><th>맞힘</th><th>응답속도(초)</th><th>상태</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr>
+        <td>총계</td>
+        <td>${total.correct} / ${total.solved}</td>
+        <td>${fmt(total.avgBefore)} → ${fmt(total.avgAfter)}</td>
+        <td></td>
+      </tr></tfoot>
+    </table>
+    <p class="study-summary-note">응답속도는 최근 기록 평균입니다. 강급후보는 이번에 틀렸거나 전보다 느려진 글자입니다.</p>
+  `);
+}
+
+/**
+ * 제목과 내용만 있는 작은 안내 창. 바깥이나 ✕를 누르면 닫힌다.
+ */
+function showInfoOverlay(title, html) {
+  document.querySelector('.info-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'info-overlay';
+  overlay.innerHTML = `
+    <div class="inbox-card" role="dialog" aria-label="${title}">
+      <div class="inbox-header">
+        <h4>${title}</h4>
+        <button type="button" class="inbox-close" aria-label="닫기">&times;</button>
+      </div>
+      <div class="info-overlay-body">${html}</div>
+    </div>`;
+  overlay.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (e.target === overlay || e.target.closest('.inbox-close')) overlay.remove();
+  });
+  document.body.appendChild(overlay);
+}
+
 function buildFullDomainPool(domain) {
   let rawDataset = ALPHABETS[domain] || [];
   if (typeof rawDataset === 'string') rawDataset = [rawDataset];
@@ -739,24 +862,16 @@ function buildFullDomainPool(domain) {
   return pool;
 }
 
-async function startSpeedrunSession() {
-  isTimeUp = false;
-  isPaused = false;
-  sessionHistory = [];
-
-  const historyBar = document.getElementById('history-bar');
-  if (historyBar) historyBar.innerHTML = '';
-
+/**
+ * 기록 모드(20문제·30초)가 쓰는 전체 글자 풀. 해금한 글자만 진도를 고친다.
+ */
+async function buildRecordPool() {
   const dbData = await getAllProgress(userConfig.currentDomain);
   const fullPool = buildFullDomainPool(userConfig.currentDomain);
   const now = Date.now();
-
-  currentPool = fullPool.map(item => {
+  return fullPool.map(item => {
     const dbItem = dbData[item.charId.toString()];
     if (!dbItem) return { ...item, isUnlocked: false };
-
-    // DB에 남아 있을 수 있는 세션 전용 플래그(isEligibleForPromotion 등)는 버리고,
-    // 승급 자격은 학습 모드와 같은 기준(복습 주기 충족 여부)으로 다시 계산한다.
     const saved = toPersistedSchema(dbItem);
     return {
       ...saved,
@@ -775,7 +890,144 @@ async function startSpeedrunSession() {
       isUnlocked: (saved.stage || 0) > 0
     };
   });
+}
 
+/* ---------- 30초 타임어택: 30초 동안 맞힌 수 ---------- */
+let taCorrectCount = 0;
+let taSolvedCount = 0;
+
+function renderTimeAttackStatus() {
+  const weightDisplay = document.getElementById('weight-display');
+  if (weightDisplay) weightDisplay.innerText = `⏱️ ${Math.max(0, timeLeft)}초 | ✅ ${taCorrectCount} / ${taSolvedCount}`;
+  updateTimerProgressBar(timeLeft, TIME_ATTACK_SECONDS);
+}
+
+async function startTimeAttackSession() {
+  isTimeUp = false;
+  isPaused = false;
+  sessionHistory = [];
+  taCorrectCount = 0;
+  taSolvedCount = 0;
+
+  const historyBar = document.getElementById('history-bar');
+  if (historyBar) historyBar.innerHTML = '';
+
+  currentPool = await buildRecordPool();
+  if (currentPool.length < 4) {
+    alert("선택된 도메인에 출제 가능한 문자가 없습니다.");
+    return;
+  }
+
+  const userInfoRight = document.querySelector('.user-info-right');
+  if (userInfoRight) userInfoRight.classList.add('hidden');
+
+  await preloadSessionVoices(currentPool);
+
+  timeLeft = TIME_ATTACK_SECONDS;
+  renderTimeAttackStatus();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(tickTimeAttackTimer, 1000);
+
+  await renderNextTimeAttackQuestion();
+}
+
+function tickTimeAttackTimer() {
+  timeLeft--;
+  renderTimeAttackStatus();
+  if (timeLeft <= 0) terminateTimeAttackSession();
+}
+
+async function renderNextTimeAttackQuestion() {
+  const optionsContainer = document.getElementById('options');
+  if (!optionsContainer || currentMode !== 'timeattack' || timeLeft <= 0) return;
+  optionsContainer.innerHTML = '';
+  optionsContainer.style.pointerEvents = 'auto';
+
+  let targetItem = currentPool[Math.floor(Math.random() * currentPool.length)];
+  if (currentQuestion && currentPool.length > 1 && targetItem.charId === currentQuestion.target?.charId) {
+    targetItem = currentPool[(currentPool.indexOf(targetItem) + 1) % currentPool.length];
+  }
+  currentQuestion = generateFourOptions(targetItem, currentPool);
+
+  window.audioTriggerClick = () => { playTargetVoice(currentQuestion.target.char); };
+  const audioBtn = document.getElementById('audio-trigger');
+  if (audioBtn) audioBtn.onclick = window.audioTriggerClick;
+  bindQuizHintButton();
+
+  window.audioTriggerClick();
+  questionStartTime = Date.now();
+  renderOptionButtons(optionsContainer, handleTimeAttackAnswer);
+}
+
+async function handleTimeAttackAnswer(selectedCharId, latency) {
+  if (timeLeft <= 0) return;
+  const optionsContainer = document.getElementById('options');
+  if (optionsContainer) optionsContainer.style.pointerEvents = 'none';
+
+  const target = currentQuestion.target;
+  const isCorrect = selectedCharId === target.charId;
+  taSolvedCount++;
+  if (isCorrect) taCorrectCount++;
+
+  if (target.isUnlocked) {
+    const idx = currentPool.findIndex(p => p.charId === target.charId);
+    const updatedItem = calculateReviewState({ ...currentPool[idx] }, isCorrect, latency);
+    currentPool[idx] = { ...updatedItem, isUnlocked: true, touched: true };
+  }
+
+  sessionHistory.push({ charId: target.charId, char: target.char, isCorrect, speed: latency });
+  updateHistoryBarUI();
+  renderTimeAttackStatus();
+
+  if (!isCorrect) await handleErrorFeedback(target.charId);
+  await renderNextTimeAttackQuestion();
+}
+
+async function terminateTimeAttackSession() {
+  if (currentMode !== 'timeattack') return;
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  isPaused = false;
+  isTimeUp = false;
+  const playedSec = TIME_ATTACK_SECONDS - Math.max(0, timeLeft);
+  const finishedInTime = timeLeft <= 0;
+  timeLeft = 0;
+
+  resetToMainModeSelection();
+
+  const accuracy = taSolvedCount > 0 ? Math.round((taCorrectCount / taSolvedCount) * 100) : 0;
+  showInfoOverlay(t('mode.record30'), `
+    <div class="timeattack-result">
+      <strong>${taCorrectCount}</strong><span>개 맞힘</span>
+    </div>
+    <p class="study-summary-note">푼 문제 ${taSolvedCount}개 · 정답률 ${accuracy}%${finishedInTime ? '' : ' · 중간에 그만둔 기록은 순위에 올리지 않습니다.'}</p>
+  `);
+
+  try {
+    const itemsToSave = currentPool.filter(item => item.isUnlocked && item.touched);
+    if (itemsToSave.length > 0) await saveSessionPoolState(userConfig.currentDomain, itemsToSave);
+    await updateDailyStudyTime(playedSec, userConfig.currentDomain);
+    if (finishedInTime && taSolvedCount > 0) {
+      const { recordDomain, playerName } = resolveRankingMetadata();
+      await submitTimeAttackRanking(recordDomain, taCorrectCount, taSolvedCount, accuracy, playerName);
+    }
+    console.log(`[TimeAttack] 30초 타임어택 완료 - 맞힘 ${taCorrectCount} / ${taSolvedCount}`);
+  } catch (dbError) {
+    console.error("30초 타임어택 데이터 처리 중 예외 발생:", dbError);
+  }
+}
+
+async function startSpeedrunSession() {
+  isTimeUp = false;
+  isPaused = false;
+  sessionHistory = [];
+
+  const historyBar = document.getElementById('history-bar');
+  if (historyBar) historyBar.innerHTML = '';
+
+  currentPool = await buildRecordPool();
   currentPool.sort(() => Math.random() - 0.5);
 
   if (!currentPool || currentPool.length === 0) {
@@ -783,7 +1035,7 @@ async function startSpeedrunSession() {
     return;
   }
 
-  srTotalCount = currentPool.length;
+  srTotalCount = Math.min(currentPool.length, SPEEDRUN_MAX_QUESTIONS);
   srCurrentIndex = 0;
   srCorrectCount = 0;
   srElapsedTime = 0;
@@ -791,7 +1043,8 @@ async function startSpeedrunSession() {
   const userInfoRight = document.querySelector('.user-info-right');
   if (userInfoRight) userInfoRight.classList.add('hidden');
 
-  await preloadSessionVoices(currentPool);
+  // 소리는 실제로 나올 20문제의 글자만 미리 받는다
+  await preloadSessionVoices(currentPool.slice(0, srTotalCount));
 
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(tickSpeedrunTimer, 1000);
@@ -844,7 +1097,7 @@ async function handleSpeedrunAnswer(selectedCharId, latency) {
     currentPool[srCurrentIndex] = { ...updatedItem, isUnlocked: true };
   }
 
-  sessionHistory.push({ char: target.char, isCorrect, speed: latency });
+  sessionHistory.push({ charId: target.charId, char: target.char, isCorrect, speed: latency });
   updateHistoryBarUI();
 
   if (!isCorrect) {
@@ -858,7 +1111,7 @@ async function handleSpeedrunAnswer(selectedCharId, latency) {
 function tickSpeedrunTimer() {
   srElapsedTime++;
   const weightDisplay = document.getElementById('weight-display');
-  if (weightDisplay && currentMode !== 'study') {
+  if (weightDisplay && currentMode === 'record') {
     weightDisplay.innerText = `진행률: ${srCurrentIndex + 1 > srTotalCount ? srTotalCount : srCurrentIndex + 1} / ${srTotalCount} | ⏱️ ${formatTime(srElapsedTime)}`;
   }
 }
@@ -884,7 +1137,8 @@ async function terminateSpeedrunSession() {
   resetToMainModeSelection();
 
   try {
-    const itemsToSave = currentPool.filter(item => item.isUnlocked);
+    // 20문제 안에서 나온 글자만 진도를 고친다
+    const itemsToSave = currentPool.slice(0, srTotalCount).filter(item => item.isUnlocked);
     if (itemsToSave.length > 0) {
       await saveSessionPoolState(userConfig.currentDomain, itemsToSave);
       console.log(`스피드런 세션 해금 문자 진도 동기화 완료 (${itemsToSave.length}개)`);
@@ -895,7 +1149,10 @@ async function terminateSpeedrunSession() {
     const accuracy = Math.round((srCorrectCount / srTotalCount) * 100);
     const { recordDomain, playerName } = resolveRankingMetadata();
 
-    await submitSpeedrunRanking(recordDomain, srTotalCount, srElapsedTime, accuracy, playerName);
+    // 20문제를 다 풀었을 때만 순위에 올린다(중간에 그만두면 올리지 않음)
+    if (srCurrentIndex >= srTotalCount) {
+      await submitSpeedrunRanking(recordDomain, srTotalCount, srElapsedTime, accuracy, playerName);
+    }
     console.log(`[Speedrun] 기록 모드 완료 - 소요 시간: ${formatTime(srElapsedTime)}, 정답률: ${accuracy}%`);
   } catch (dbError) {
     console.error("스피드런 데이터 처리 중 예외 발생:", dbError);
@@ -1084,20 +1341,16 @@ window.exitQuizTrigger = function () {
       terminateQuizSession();
     } else if (currentMode === 'record') {
       terminateSpeedrunSession();
+    } else if (currentMode === 'timeattack') {
+      terminateTimeAttackSession();
     } else {
       terminateSpectatorSession();
     }
   } else {
     if (!wasPaused) {
       isPaused = false;
-      if (wasInterval) {
-        if (currentMode === 'study') {
-          timerInterval = setInterval(tickSessionTimer, 1000);
-        } else if (currentMode === 'record') {
-          timerInterval = setInterval(tickSpeedrunTimer, 1000);
-        } else if (currentMode === 'spectator') {
-          timerInterval = setInterval(tickSpectatorSessionTimer, 1000);
-        }
+      if (wasInterval && getSessionTicker()) {
+        timerInterval = setInterval(getSessionTicker(), 1000);
       }
       if (wasSpectatorInterval && currentMode === 'spectator') {
         const intervalMs = (userConfig.spectatorInterval || 1) * 1000;
@@ -1109,6 +1362,15 @@ window.exitQuizTrigger = function () {
     }
   }
 };
+
+/** 지금 모드의 1초 타이머 함수 */
+function getSessionTicker() {
+  if (currentMode === 'study') return tickSessionTimer;
+  if (currentMode === 'record') return tickSpeedrunTimer;
+  if (currentMode === 'timeattack') return tickTimeAttackTimer;
+  if (currentMode === 'spectator') return tickSpectatorSessionTimer;
+  return null;
+}
 
 /**
  * 세션 타임아웃 또는 강제 이탈 시 메인 선택 화면으로 리셋 복귀
@@ -1127,9 +1389,51 @@ function resetToMainModeSelection() {
     mainBox.innerHTML = MAIN_SELECTION_HTML;
     applyI18n(mainBox);
     updateVisualBadges(userConfig);
+    renderDomainSummary();
   }
 
   updateReviewCountBadge();
+}
+
+/** 처음 화면 요약 카드의 언어 묶음. 같은 묶음의 글자 종류를 나란히 보여 준다. */
+const DOMAIN_GROUPS = [
+  { key: 'summary.lang.ja', domains: ['hira', 'kata'] },
+  { key: 'summary.lang.ko', domains: ['hangle'] },
+  { key: 'summary.lang.en', domains: ['ENGLISH', 'english'] }
+];
+
+/**
+ * 처음 화면의 학습범위 요약 카드. 언어 이름, 글자 종류(지금 것은 강조, 나머지는 음영), 해금한 글자 수.
+ * 음영인 글자 종류를 누르면 그 종류로 바꾼다.
+ */
+async function renderDomainSummary() {
+  const card = document.getElementById('domain-summary');
+  if (!card) return;
+  const domain = userConfig.currentDomain;
+  const group = DOMAIN_GROUPS.find((g) => g.domains.includes(domain)) || DOMAIN_GROUPS[0];
+  const total = getFlattenedDataset(domain).length;
+  let unlocked = 0;
+  try {
+    const progress = await getAllProgress(domain);
+    unlocked = Object.values(progress || {}).filter((p) => p && p.stage > 0).length;
+  } catch (error) {
+    console.warn('[Summary] 진도를 읽지 못했습니다:', error);
+  }
+  if (!card.isConnected || userConfig.currentDomain !== domain) return;
+  const percent = total > 0 ? ((unlocked / total) * 100).toFixed(1) : '0.0';
+
+  card.innerHTML = `
+    <strong class="summary-lang">${t(group.key)}</strong>
+    <div class="summary-domains">
+      ${group.domains.map((d) => `
+        <button type="button" class="summary-domain${d === domain ? ' active' : ''}" data-domain="${d}"
+          ${d === domain ? 'aria-current="true"' : ''}>${t(`summary.${d}`)}</button>`).join('')}
+    </div>
+    <p class="summary-count"><b>${unlocked} / ${total}</b> (${percent}%) ${t('summary.unlocked')}</p>
+  `;
+  card.querySelectorAll('.summary-domain:not(.active)').forEach((btn) => {
+    btn.addEventListener('click', () => setDomain(btn.dataset.domain));
+  });
 }
 
 /**
@@ -1184,10 +1488,8 @@ window.pauseGameTrigger = function () {
   } else {
     isPaused = false;
 
-    if (currentMode === 'study') {
-      timerInterval = setInterval(tickSessionTimer, 1000);
-    } else if (currentMode === 'record') {
-      timerInterval = setInterval(tickSpeedrunTimer, 1000);
+    if (currentMode !== 'spectator' && getSessionTicker()) {
+      timerInterval = setInterval(getSessionTicker(), 1000);
     } else if (currentMode === 'spectator') {
       timerInterval = setInterval(tickSpectatorSessionTimer, 1000);
       const intervalMs = (userConfig.spectatorInterval || 1) * 1000;
@@ -1346,8 +1648,13 @@ window.toggleDomain = function () {
 
   const currentIndex = domains.indexOf(userConfig.currentDomain);
   const nextIndex = (currentIndex + 1) % domains.length;
+  setDomain(domains[nextIndex]);
+};
 
-  userConfig.currentDomain = domains[nextIndex];
+/** 글자 종류(도메인)를 바꾸고 처음 화면을 다시 그린다. */
+function setDomain(domain) {
+  if (!ALPHABETS[domain]) return;
+  userConfig.currentDomain = domain;
   window.currentDomain = userConfig.currentDomain;
 
   updateDomainUI();
@@ -1356,7 +1663,7 @@ window.toggleDomain = function () {
 
   resetToMainModeSelection();
   updateReviewCountBadge();
-};
+}
 
 const NOTIFICATION_STATUS_TEXT = {
   off: '받지 않음',
@@ -1478,27 +1785,28 @@ async function openRemoteModalPopup(viewName, options = {}) {
       help: '도움말',
       leaderboard: '리더보드',
       setting: '환경설정',
-      progress: '단어장 & 학습 현황',
+      progress: '학습현황',
       login: auth.currentUser ? '로그인 계정' : '간편 로그인',
       spectatorMode: '관전 모드',
       studyMode: '학습 모드'
     };
     const modalTitle = viewTitles[viewName] || '안내';
     const isSetting = viewName === 'setting';
+    const isFullScreen = ['setting', 'leaderboard', 'progress'].includes(viewName);
     const versionIsNew = isSetting && hasUnseenVersion();
-
-    const overlay = document.createElement('div');
-    overlay.className = isSetting ? 'modal-overlay setting-screen' : 'modal-overlay';
-    overlay.innerHTML = isSetting ? `
-      <div class="modal-content">
-        <div class="modal-header setting-screen-header">
-          <div class="setting-toolbar">
+    const closeBtnHtml = `
             <button type="button" class="modal-close setting-tool-btn" data-i18n-title="setting.close">
               <span class="material-symbols-outlined">close</span>
-            </button>
-            <button type="button" class="setting-tool-btn" id="setting-sound-btn" data-i18n-title="setting.soundTest">
-              <span class="material-symbols-outlined">sound_detection_loud_sound</span>
-            </button>
+            </button>`;
+
+    const overlay = document.createElement('div');
+    overlay.className = isFullScreen ? 'modal-overlay full-screen' : 'modal-overlay';
+    overlay.innerHTML = isFullScreen ? `
+      <div class="modal-content">
+        <div class="modal-header full-screen-header">
+          <h3 class="modal-title">${isSetting ? 'CharQuiz' : modalTitle}</h3>
+          <div class="setting-toolbar">
+            ${isSetting ? `
             <button type="button" class="setting-tool-btn" id="setting-inbox-btn" data-i18n-title="setting.inbox">
               <span class="material-symbols-outlined">notifications</span>
               <span class="inbox-unread-badge" hidden></span>
@@ -1509,9 +1817,13 @@ async function openRemoteModalPopup(viewName, options = {}) {
             </button>
             <button type="button" class="setting-tool-btn" id="setting-share-btn" data-i18n-title="setting.share">
               <span class="material-symbols-outlined">share</span>
-            </button>
+            </button>` : ''}
+            ${viewName === 'progress' ? `
+            <button type="button" class="setting-tool-btn" id="progress-help-btn" title="도움말" aria-label="도움말">
+              <span class="material-symbols-outlined">help</span>
+            </button>` : ''}
+            ${closeBtnHtml}
           </div>
-          <h3 class="modal-title">CharQuiz</h3>
         </div>
         <div class="modal-body">
           ${htmlContent}
@@ -1538,6 +1850,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
           saveUserConfig(userConfig);
           console.log("[Settings] 설정 모달 종료 - 일괄 저장 완료");
         }
+        if (viewName === 'progress') renderDomainSummary();
         if (viewName === 'leaderboard') {
           if (window.highlightRemaining > 0) {
             window.highlightRemaining--;
@@ -1590,10 +1903,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
         const targetDomain = window.targetLeaderboardDomain || 'all';
         const mode = window.currentLeaderboardMode || 'speedrun';
 
-        const rankings = mode === 'study'
-          ? await getStudyRankings(10, targetDomain)
-          : await getGlobalRankings(10, targetDomain);
-        renderLeaderboardUI(rankings, mode);
+        await renderLeaderboardMode(mode, targetDomain);
 
         setTimeout(() => {
           const domainSelect = document.querySelector('select[onchange*="changeLeaderboardDomain"]');
@@ -1606,6 +1916,20 @@ async function openRemoteModalPopup(viewName, options = {}) {
 
     if (viewName === 'login') {
       renderLoginModalState(auth.currentUser);
+    }
+
+    if (viewName === 'progress') {
+      overlay.querySelector('#progress-help-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showInfoOverlay('학습현황 도움말', `
+          <ul class="progress-help-list">
+            <li><b>색이 칠해진 글자</b>(이미 나간 진도)를 누르면 그 글자의 기록을 <b>초기화</b>할지 묻습니다.</li>
+            <li><b>회색 글자</b>(아직 해금 전)를 누르면 진도를 <b>강제로 해금</b>할지 묻습니다.</li>
+            <li>글자를 <b>길게 누르면</b> 그 글자의 힌트 목록이 열립니다. 로그인하면 내 힌트를 쓰고 따봉을 누를 수 있습니다.</li>
+            <li><b>빨간 테두리</b>는 복습할 때가 된 글자입니다.</li>
+            <li><b>응답속도 / 장기기억</b> 단추로 칸 색의 기준을 바꿉니다.</li>
+          </ul>`);
+      });
     }
 
     if (viewName === 'setting') {
@@ -1625,7 +1949,7 @@ async function openRemoteModalPopup(viewName, options = {}) {
         openRemoteModalPopup('help', { returnTo: 'setting' });
       });
 
-      overlay.querySelector('#setting-sound-btn')?.addEventListener('click', (e) => {
+      overlay.querySelector('#setting-sound-test')?.addEventListener('click', (e) => {
         e.stopPropagation();
         playSoundTest();
       });
@@ -1783,6 +2107,9 @@ function startStudyFromInbox() {
   window.startSessionWorkflow?.('study');
 }
 
+/** 학습현황에서 글자를 길게 누르면 여는 힌트 목록 (ui-modal-handler.js 의 길게 누르기가 부른다) */
+window.openCharHintList = (domain, char) => openHintListModal(domain, char);
+
 window.popupHelp = () => openRemoteModalPopup('help');
 window.popupLeaderboard = (domain = 'all', mode = 'speedrun') => {
   window.targetLeaderboardDomain = domain;
@@ -1796,20 +2123,38 @@ window.popupLogin = () => openRemoteModalPopup('login');
 /**
  * 리더보드 도메인 필터 변경 시 호출
  */
+/**
+ * 리더보드 탭 하나를 그린다. speedrun(20문제) | timeattack(30초) | study(학습) | hints(힌트 따봉)
+ */
+async function renderLeaderboardMode(mode, targetDomain) {
+  if (mode === 'hints') {
+    renderLeaderboardUI([], 'hints');
+    await renderHintHallOfFame();
+    return;
+  }
+  const rankings = mode === 'study'
+    ? await getStudyRankings(10, targetDomain)
+    : mode === 'timeattack'
+      ? await getTimeAttackRankings(10, targetDomain)
+      : await getGlobalRankings(10, targetDomain);
+  renderLeaderboardUI(rankings, mode);
+}
+
 window.changeLeaderboardDomain = async function (targetDomain) {
   window.targetLeaderboardDomain = targetDomain;
   const listContainer = document.getElementById('leaderboard-list');
   const mode = window.currentLeaderboardMode || 'speedrun';
   if (listContainer) {
-    const colCount = mode === 'study' ? 7 : 6;
+    const colCount = mode === 'study' ? 7 : mode === 'hints' ? 4 : 6;
     listContainer.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 30px; color:#777;">데이터를 불러오는 중입니다...</td></tr>`;
   }
+  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+    document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
+  });
   try {
-    const rankings = mode === 'study'
-      ? await getStudyRankings(10, targetDomain)
-      : await getGlobalRankings(10, targetDomain);
-    renderLeaderboardUI(rankings, mode);
+    await renderLeaderboardMode(mode, targetDomain);
   } catch (err) {
+    if (listContainer) listContainer.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 30px; color:#777;">순위를 불러오지 못했어요.</td></tr>`;
     console.error("[Leaderboard] 랭킹 데이터 필터링 실패:", err);
   }
 };
@@ -1822,15 +2167,16 @@ window.switchLeaderboardMode = async function (mode) {
   const targetDomain = window.targetLeaderboardDomain || 'all';
   const listContainer = document.getElementById('leaderboard-list');
   if (listContainer) {
-    const colCount = mode === 'study' ? 7 : 6;
+    const colCount = mode === 'study' ? 7 : mode === 'hints' ? 4 : 6;
     listContainer.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 30px; color:#777;">데이터를 불러오는 중입니다...</td></tr>`;
   }
+  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+    document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
+  });
   try {
-    const rankings = mode === 'study'
-      ? await getStudyRankings(10, targetDomain)
-      : await getGlobalRankings(10, targetDomain);
-    renderLeaderboardUI(rankings, mode);
+    await renderLeaderboardMode(mode, targetDomain);
   } catch (err) {
+    if (listContainer) listContainer.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 30px; color:#777;">순위를 불러오지 못했어요.</td></tr>`;
     console.error("[Leaderboard] 랭킹 모드 전환 실패:", err);
   }
 };

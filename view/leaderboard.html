@@ -21,8 +21,9 @@
     background-color: #f1f3f5;
     color: #495057;
     transition: all 0.2s ease;
-    font-size: 14px;
+    font-size: 13px;
     outline: none;
+    white-space: nowrap;
   }
   .tab-btn:hover {
     background-color: #e9ecef;
@@ -47,8 +48,10 @@
   </div>
 
   <div class="leaderboard-tabs">
-    <button id="tab-speedrun" class="tab-btn active" onclick="switchLeaderboardMode('speedrun')">기록 모드</button>
-    <button id="tab-study" class="tab-btn" onclick="switchLeaderboardMode('study')">학습 모드</button>
+    <button id="tab-speedrun" class="tab-btn active" onclick="switchLeaderboardMode('speedrun')">20문제</button>
+    <button id="tab-timeattack" class="tab-btn" onclick="switchLeaderboardMode('timeattack')">30초</button>
+    <button id="tab-study" class="tab-btn" onclick="switchLeaderboardMode('study')">학습</button>
+    <button id="tab-hints" class="tab-btn" onclick="switchLeaderboardMode('hints')">힌트 따봉</button>
   </div>
 
   <table class="leaderboard-table">
