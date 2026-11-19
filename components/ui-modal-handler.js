@@ -336,7 +336,7 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
     return;
   }
 
-  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+  ['speedrun', 'timeattack', 'hints'].forEach((tabMode) => {
     document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
   });
   // 힌트 따봉 탭은 hint-handler.js 의 renderHintHallOfFame 이 표를 그린다
@@ -355,18 +355,6 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
           <th>완료 시각</th>
         </tr>
       `;
-    } else if (mode === 'study') {
-      headerContainer.innerHTML = `
-        <tr>
-          <th>순위</th>
-          <th>아이디</th>
-          <th>도메인</th>
-          <th>정답수</th>
-          <th>소요시간</th>
-          <th>정답률</th>
-          <th>완료시각</th>
-        </tr>
-      `;
     } else {
       headerContainer.innerHTML = `
         <tr>
@@ -383,7 +371,7 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
 
   listContainer.innerHTML = '';
 
-  const colCount = mode === 'study' ? 7 : 6;
+  const colCount = 6;
 
   if (!rankings || rankings.length === 0) {
     listContainer.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 30px; color:#777;">등록된 기록이 없습니다.</td></tr>`;
@@ -427,18 +415,6 @@ export function renderLeaderboardUI(rankings, mode = 'speedrun') {
           <td style="font-weight:bold; color:#333; text-align:center;">${safeName}</td>
           <td style="text-align:center;">${domainDisplay}</td>
           <td style="text-align:center; font-weight:bold; color:#4CAF50;">${Number(entry.correctCount) || 0} <span style="font-size:11px; color:#999;">(${Number(entry.solvedCount) || 0})</span></td>
-          <td style="text-align:center;">${Number(entry.accuracy) || 0}%</td>
-          <td style="text-align:center; font-size:11px; color:#aaa;">${safeUpdatedAt}</td>
-        </tr>
-      `;
-    } else if (mode === 'study') {
-      html += `
-        <tr style="${trStyle}">
-          <td style="text-align:center; ${rankStyle} font-size:16px;">${rank}</td>
-          <td style="font-weight:bold; color:#333; text-align:center;">${safeName}</td>
-          <td style="text-align:center;">${domainDisplay}</td>
-          <td style="text-align:center; font-weight:bold; color:#4CAF50;">${Number(entry.correctCount) || 0}</td>
-          <td style="text-align:center; font-weight:bold; color:#2196F3;">${safeElapsed}</td>
           <td style="text-align:center;">${Number(entry.accuracy) || 0}%</td>
           <td style="text-align:center; font-size:11px; color:#aaa;">${safeUpdatedAt}</td>
         </tr>

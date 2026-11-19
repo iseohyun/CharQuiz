@@ -429,66 +429,88 @@ export const updateDailyStats = async (avgAll, avgR10, avgR5) => {
   }, { merge: true });
 };
 
-/**
- * 스피드런 랭킹 기록 등록
- */
-export const submitSpeedrunRanking = async (domain, charCount, elapsedTime, accuracy, customName = null) => {
-  if (!currentUserUid) return;
+/* ==========================================================================
+   순위 (20문제 · 30초 타임어택)
+   - 사람·도메인마다 문서 하나(`uid_domain`)에 본인 최고 기록 1개만 둔다.
+   - 20문제: 정답률 높은 순, 같으면 빨리 끝낸 순. 문제 수가 정확히 20개인 판만 받는다.
+   - 30초: 정답률 높은 순, 같으면 맞힌 수 많은 순(마구 눌러 맞힌 수만 많은 기록이 위로 오지 않게).
+   ========================================================================== */
+export const SPEEDRUN_RANKING_QUESTION_COUNT = 20;
 
-  let displayName = customName;
-  if (!displayName) {
-    const userNameDisplay = document.getElementById('profile-name');
-    displayName = userNameDisplay ? userNameDisplay.innerText : "게스트";
-  }
+const compareSpeedrun = (a, b) =>
+  ((b.accuracy || 0) - (a.accuracy || 0)) || ((a.elapsedTime || 0) - (b.elapsedTime || 0)) || ((a.updatedAt || 0) - (b.updatedAt || 0));
+const compareTimeAttack = (a, b) =>
+  ((b.accuracy || 0) - (a.accuracy || 0)) || ((b.correctCount || 0) - (a.correctCount || 0)) || ((a.updatedAt || 0) - (b.updatedAt || 0));
 
-  const docId = `${currentUserUid}_${domain}_${Date.now()}`;
-  const docRef = doc(db, 'charquiz_speedrun_rankings', docId);
-
-  await setDoc(docRef, {
-    uid: currentUserUid,
-    name: displayName,
-    domain: domain,
-    charCount: charCount,
-    elapsedTime: elapsedTime,
-    accuracy: accuracy,
-    updatedAt: Date.now()
+/** 좋은 순으로 늘어놓고 사람·도메인마다 첫 기록만 남긴다(옛 문서가 남아 있어도 한 줄만 보이게) */
+const keepBestPerPlayer = (rows, compare) => {
+  const seen = new Set();
+  return [...rows].sort(compare).filter((r) => {
+    const key = `${r.uid}_${r.domain}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
+};
 
+/** 본인 최고 기록보다 좋을 때만 `uid_domain` 문서를 고쳐 쓴다. @returns {Promise<string|null>} 고쳐 썼으면 문서 ID */
+const saveIfPersonalBest = async (collectionName, record, compare) => {
+  const docId = `${currentUserUid}_${record.domain}`;
+  const ref = doc(db, collectionName, docId);
+  const snap = await getDoc(ref);
+  if (snap.exists() && compare(record, snap.data()) >= 0) return null;
+  await setDoc(ref, record);
   return docId;
 };
 
+const pad2 = (n) => n.toString().padStart(2, '0');
+const formatRankingRow = (data) => {
+  const e = data.elapsedTime || 0;
+  const elapsedStr = data.durationSec ? '00:30' : `${pad2(Math.floor(e / 60))}:${pad2(e % 60)}`;
+  const d = new Date(data.updatedAt);
+  return {
+    ...data,
+    score: `${data.accuracy}% (${elapsedStr})`,
+    elapsedStr,
+    updatedAt: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`
+  };
+};
+
+const resolveDisplayName = (customName) =>
+  customName || document.getElementById('profile-name')?.innerText || '게스트';
+
 /**
- * 글로벌 랭킹 리스트 탑다운 조회
+ * 20문제 타임어택 기록. 20문제가 아닌 판은 받지 않고, 본인 최고 기록보다 좋을 때만 고쳐 쓴다.
+ * @returns {Promise<string|null>} 새 최고 기록이면 문서 ID
+ */
+export const submitSpeedrunRanking = async (domain, charCount, elapsedTime, accuracy, customName = null) => {
+  if (!currentUserUid || charCount !== SPEEDRUN_RANKING_QUESTION_COUNT) return null;
+  return saveIfPersonalBest('charquiz_speedrun_rankings', {
+    uid: currentUserUid,
+    name: resolveDisplayName(customName),
+    domain,
+    charCount,
+    elapsedTime,
+    accuracy,
+    updatedAt: Date.now()
+  }, compareSpeedrun);
+};
+
+/**
+ * 20문제 순위 (사람·도메인마다 최고 기록 1개)
  */
 export const getGlobalRankings = async (limitCount = 10, targetDomain = 'all') => {
   const rankingsRef = collection(db, 'charquiz_speedrun_rankings');
-
-  let q = query(rankingsRef, orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount));
-  if (targetDomain !== 'all') {
-    q = query(rankingsRef, where('domain', '==', targetDomain), orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount));
-  }
+  const q = targetDomain === 'all'
+    ? query(rankingsRef, orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(300))
+    : query(rankingsRef, where('domain', '==', targetDomain), orderBy('accuracy', 'desc'), orderBy('elapsedTime', 'asc'), limit(300));
 
   try {
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-
-      const totalM = Math.floor(data.elapsedTime / 60).toString().padStart(2, '0');
-      const s = (data.elapsedTime % 60).toString().padStart(2, '0');
-      const elapsedStr = `${totalM}:${s}`;
-
-      const d = new Date(data.updatedAt);
-      const dateStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-      const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
-
-      return {
-        id: docSnap.id,
-        ...data,
-        score: `${data.accuracy}% (${elapsedStr})`,
-        elapsedStr: elapsedStr,
-        updatedAt: `${dateStr} ${timeStr}`
-      };
-    });
+    const rows = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .filter((r) => r.charCount === SPEEDRUN_RANKING_QUESTION_COUNT);
+    return keepBestPerPlayer(rows, compareSpeedrun).slice(0, limitCount).map(formatRankingRow);
   } catch (error) {
     if (error.message && error.message.includes('index')) {
       console.error("🔥 [DB Error] Firebase 복합 인덱스가 누락되었습니다! 다음 링크를 클릭하여 생성하세요:\n", error.message);
@@ -543,100 +565,6 @@ export const getUserConfig = async () => {
   }
 
   return null;
-};
-
-
-
-/**
- * 학습 모드 랭킹 기록 등록 (예외 방어)
- * @returns {Promise<boolean>} 새로운 기록으로 갱신되었는지 여부
- */
-export const submitStudyRanking = async (domain, correctCount, elapsedTime, accuracy, customName = null) => {
-  if (!currentUserUid) return false;
-
-  let displayName = customName;
-  if (!displayName) {
-    const userNameDisplay = document.getElementById('profile-name');
-    displayName = userNameDisplay ? userNameDisplay.innerText : "게스트";
-  }
-
-  const docId = `${currentUserUid}_${domain}`;
-  const docRef = doc(db, 'charquiz_study_rankings', docId);
-
-  try {
-    const docSnap = await getDoc(docRef);
-    let shouldUpdate = false;
-
-    if (docSnap.exists()) {
-      const data = docSnap.data();
-      const existingCorrect = data.correctCount || 0;
-      const existingTime = data.elapsedTime || Infinity;
-
-      if (correctCount > existingCorrect) {
-        shouldUpdate = true;
-      } else if (correctCount === existingCorrect && elapsedTime < existingTime) {
-        shouldUpdate = true;
-      }
-    } else {
-      shouldUpdate = true;
-    }
-
-    if (shouldUpdate) {
-      await setDoc(docRef, {
-        uid: currentUserUid,
-        name: displayName,
-        domain: domain,
-        correctCount: correctCount,
-        elapsedTime: elapsedTime,
-        accuracy: accuracy,
-        updatedAt: Date.now()
-      });
-      return true;
-    }
-    return false;
-  } catch (error) {
-    console.warn("[LocalFirst] 학습모드 랭킹 DB 저장 생략 (로컬 구동 유지):", error.message);
-    return false;
-  }
-};
-
-/**
- * 학습 모드 글로벌 랭킹 리스트 조회
- */
-export const getStudyRankings = async (limitCount = 10, targetDomain = 'all') => {
-  const rankingsRef = collection(db, 'charquiz_study_rankings');
-
-  let q = query(rankingsRef, orderBy('correctCount', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount));
-  if (targetDomain !== 'all') {
-    q = query(rankingsRef, where('domain', '==', targetDomain), orderBy('correctCount', 'desc'), orderBy('elapsedTime', 'asc'), limit(limitCount));
-  }
-
-  try {
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(docSnap => {
-      const data = docSnap.data();
-
-      const totalM = Math.floor(data.elapsedTime / 60).toString().padStart(2, '0');
-      const s = (data.elapsedTime % 60).toString().padStart(2, '0');
-      const elapsedStr = `${totalM}:${s}`;
-
-      const d = new Date(data.updatedAt);
-      const dateStr = `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
-      const timeStr = `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
-
-      return {
-        id: docSnap.id,
-        ...data,
-        elapsedStr: elapsedStr,
-        updatedAt: `${dateStr} ${timeStr}`
-      };
-    });
-  } catch (error) {
-    if (error.message && error.message.includes('index')) {
-      console.error("🔥 [DB Error] Firebase 복합 인덱스가 누락되었습니다! 다음 링크를 클릭하여 생성하세요:\n", error.message);
-    }
-    throw error;
-  }
 };
 
 /**
@@ -734,52 +662,34 @@ export const mergeGuestProgress = async (items) => {
 };
 
 /**
- * 기록 모드 「30초 타임어택」 기록 한 건을 남긴다. 기록마다 새 문서(수정·삭제는 관리자만).
- * @returns {Promise<string|undefined>} 남긴 문서 ID
+ * 30초 타임어택 기록. 기록 모드 30초와, 학습 시간을 30초로 두고 끝까지 한 학습 모드가 함께 쓴다.
+ * 본인 최고 기록(정답률 → 맞힌 수)보다 좋을 때만 고쳐 쓴다.
+ * @returns {Promise<string|null>} 새 최고 기록이면 문서 ID
  */
 export const submitTimeAttackRanking = async (domain, correctCount, solvedCount, accuracy, customName = null) => {
-  if (!currentUserUid) return;
-
-  let displayName = customName;
-  if (!displayName) {
-    const userNameDisplay = document.getElementById('profile-name');
-    displayName = userNameDisplay ? userNameDisplay.innerText : "게스트";
-  }
-
-  const docId = `${currentUserUid}_${domain}_${Date.now()}`;
-  await setDoc(doc(db, 'charquiz_timeattack_rankings', docId), {
+  if (!currentUserUid || !(solvedCount > 0)) return null;
+  return saveIfPersonalBest('charquiz_timeattack_rankings', {
     uid: currentUserUid,
-    name: displayName,
+    name: resolveDisplayName(customName),
     domain,
     correctCount,
     solvedCount,
     accuracy,
     durationSec: 30,
     updatedAt: Date.now()
-  });
-  return docId;
+  }, compareTimeAttack);
 };
 
 /**
- * 30초 타임어택 순위. 맞힌 수가 많은 순, 같으면 정답률이 높은 순.
- * 복합 인덱스 없이 쓰도록 맞힌 수 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
+ * 30초 타임어택 순위. 정답률 높은 순, 같으면 맞힌 수 많은 순. 사람·도메인마다 최고 기록 1개.
+ * 복합 인덱스 없이 쓰도록 정답률 순으로 넉넉히 읽고 도메인은 화면에서 거른다.
  */
 export const getTimeAttackRankings = async (limitCount = 10, targetDomain = 'all') => {
-  const snapshot = await getDocs(query(collection(db, 'charquiz_timeattack_rankings'), orderBy('correctCount', 'desc'), limit(300)));
-  const pad = (n) => n.toString().padStart(2, '0');
-  return snapshot.docs
+  const snapshot = await getDocs(query(collection(db, 'charquiz_timeattack_rankings'), orderBy('accuracy', 'desc'), limit(500)));
+  const rows = snapshot.docs
     .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
-    .filter((data) => targetDomain === 'all' || data.domain === targetDomain)
-    .sort((a, b) => (b.correctCount - a.correctCount) || (b.accuracy - a.accuracy) || (a.updatedAt - b.updatedAt))
-    .slice(0, limitCount)
-    .map((data) => {
-      const d = new Date(data.updatedAt);
-      return {
-        ...data,
-        elapsedStr: '00:30',
-        updatedAt: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-      };
-    });
+    .filter((data) => targetDomain === 'all' || data.domain === targetDomain);
+  return keepBestPerPlayer(rows, compareTimeAttack).slice(0, limitCount).map(formatRankingRow);
 };
 
 /* ==========================================================================

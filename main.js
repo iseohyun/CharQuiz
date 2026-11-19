@@ -36,8 +36,6 @@ import {
   getComboHistory,
   submitSpeedrunRanking,
   getGlobalRankings,
-  getStudyRankings,
-  submitStudyRanking,
   toPersistedSchema,
   findGuestProgressToMerge,
   mergeGuestCombo,
@@ -829,7 +827,10 @@ async function terminateQuizSession() {
     const accuracy = sessionHistory.length > 0 ? Math.round((correctCount / sessionHistory.length) * 100) : 0;
     const { recordDomain, playerName } = resolveRankingMetadata();
 
-    if (canSubmitRanking()) await submitStudyRanking(recordDomain, correctCount, playedTime, accuracy, playerName);
+    // 학습 시간을 30초로 두고 끝까지 했으면 30초 타임어택 기록으로 본다(본인 최고 기록보다 좋을 때만 바뀜)
+    if (canSubmitRanking() && userConfig.learningTime === TIME_ATTACK_SECONDS && timeLeft <= 0) {
+      await submitTimeAttackRanking(recordDomain, correctCount, sessionHistory.length, accuracy, playerName);
+    }
     console.log(`[Quiz] 학습 세션 정상 마감 완료 - 정답수: ${correctCount}, 시간: ${formatTime(playedTime)}, 정답률: ${accuracy}%`);
   } catch (dbError) {
     console.warn("[LocalFirst] 학습모드 완료 백엔드 등록 안내 (로컬 저장 완료):", dbError.message || dbError);
@@ -1001,7 +1002,8 @@ async function buildRecordPoolForDomain(domain) {
       hasHistory: (saved.totalSolved || 0) > 0,
       isEligibleForPromotion: isDueForReview(saved, now),
       hasBeenPromotedThisSession: false,
-      isUnlocked: (saved.stage || 0) > 0
+      // 이미 공부한(한 번이라도 푼) 문제는 단계가 0이어도 기록 모드 결과를 학습 데이터에 쌓는다
+      isUnlocked: (saved.totalSolved || 0) > 0 || (saved.stage || 0) > 0
     };
   });
 }
@@ -2431,7 +2433,7 @@ window.popupLogin = () => openRemoteModalPopup('login');
  * 리더보드 도메인 필터 변경 시 호출
  */
 /**
- * 리더보드 탭 하나를 그린다. speedrun(20문제) | timeattack(30초) | study(학습) | hints(힌트 따봉)
+ * 리더보드 탭 하나를 그린다. speedrun(20문제) | timeattack(30초) | hints(힌트 따봉)
  */
 async function renderLeaderboardMode(mode, targetDomain) {
   if (mode === 'hints') {
@@ -2439,11 +2441,9 @@ async function renderLeaderboardMode(mode, targetDomain) {
     await renderHintHallOfFame();
     return;
   }
-  const rankings = mode === 'study'
-    ? await getStudyRankings(10, targetDomain)
-    : mode === 'timeattack'
-      ? await getTimeAttackRankings(10, targetDomain)
-      : await getGlobalRankings(10, targetDomain);
+  const rankings = mode === 'timeattack'
+    ? await getTimeAttackRankings(10, targetDomain)
+    : await getGlobalRankings(10, targetDomain);
   renderLeaderboardUI(rankings, mode);
 }
 
@@ -2452,10 +2452,10 @@ window.changeLeaderboardDomain = async function (targetDomain) {
   const listContainer = document.getElementById('leaderboard-list');
   const mode = window.currentLeaderboardMode || 'speedrun';
   if (listContainer) {
-    const colCount = mode === 'study' ? 7 : mode === 'hints' ? 4 : 6;
+    const colCount = mode === 'hints' ? 4 : 6;
     listContainer.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 30px; color:#777;">데이터를 불러오는 중입니다...</td></tr>`;
   }
-  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+  ['speedrun', 'timeattack', 'hints'].forEach((tabMode) => {
     document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
   });
   try {
@@ -2474,10 +2474,10 @@ window.switchLeaderboardMode = async function (mode) {
   const targetDomain = window.targetLeaderboardDomain || 'all';
   const listContainer = document.getElementById('leaderboard-list');
   if (listContainer) {
-    const colCount = mode === 'study' ? 7 : mode === 'hints' ? 4 : 6;
+    const colCount = mode === 'hints' ? 4 : 6;
     listContainer.innerHTML = `<tr><td colspan="${colCount}" style="text-align:center; padding: 30px; color:#777;">데이터를 불러오는 중입니다...</td></tr>`;
   }
-  ['speedrun', 'timeattack', 'study', 'hints'].forEach((tabMode) => {
+  ['speedrun', 'timeattack', 'hints'].forEach((tabMode) => {
     document.getElementById(`tab-${tabMode}`)?.classList.toggle('active', tabMode === mode);
   });
   try {
