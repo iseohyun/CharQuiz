@@ -40,6 +40,7 @@ import {
   submitStudyRanking,
   toPersistedSchema,
   findGuestProgressToMerge,
+  mergeGuestCombo,
   markGuestMergeHandled,
   mergeGuestProgress,
   submitTimeAttackRanking,
@@ -299,19 +300,21 @@ function applySavedConfig(savedConfig) {
  * 로그인 직후, 같은 기기에서 게스트로 학습한 기록을 계정으로 가져올지 묻는다.
  * 계정 기록이 더 최신인 문자는 건드리지 않는다.
  */
+/**
+ * 로그인하면 이 기기에서 게스트로 학습한 기록을 계정에 바로 합친다(묻지 않음).
+ * 새 계정이든 이미 있는 계정이든 같고, 글자마다 더 최근에 학습한 쪽을 남긴다. 콤보 기록은 큰 쪽을 남긴다.
+ */
 async function offerGuestProgressMerge() {
   const candidate = findGuestProgressToMerge();
+  const comboMerged = await mergeGuestCombo();
   if (!candidate || candidate.items.length === 0) return;
 
-  const shouldMerge = confirm(
-    `이 기기에서 게스트로 학습한 기록이 ${candidate.items.length}개 문자 있습니다.\n` +
-    `로그인한 계정으로 가져올까요?\n\n(계정 기록이 더 최신인 문자는 그대로 둡니다)`
-  );
   markGuestMergeHandled(candidate.flagKey);
-  if (!shouldMerge) return;
-
   const mergedCount = await mergeGuestProgress(candidate.items);
   console.log(`[GuestMerge] 게스트 학습 기록 ${mergedCount}개 문자를 계정으로 가져왔습니다.`);
+  showInfoOverlay('게스트 기록을 합쳤어요', `
+    <p class="study-summary-note" style="font-size:0.9rem;">이 기기에서 게스트로 학습한 <b>${mergedCount}개 글자</b>의 진도${comboMerged ? '와 콤보 기록' : ''}을 로그인한 계정에 합쳤습니다.
+    계정에 더 최근 기록이 있는 글자는 계정 기록을 그대로 두었습니다.</p>`);
 }
 
 const PROVIDER_META = {
@@ -905,12 +908,12 @@ function canSubmitRanking() {
   return Boolean(auth.currentUser);
 }
 
-/** 게스트에게 결과 창 아래에 보이는 「로그인하면 순위에 올라가요」 안내 */
+/** 게스트에게 결과 창 아래에 보이는 로그인 안내(기록 합치기·순위) */
 function rankingLoginNoteHtml() {
   if (canSubmitRanking()) return '';
   return `
     <div class="ranking-login-note">
-      <span>게스트 기록은 리더보드에 올라가지 않아요. 로그인하면 다음 기록부터 순위에 올라갑니다.</span>
+      <span>로그인하면 지금까지 게스트로 학습한 기록이 계정에 합쳐져 다른 기기에서도 이어서 할 수 있고, 다음 기록부터 리더보드에도 올라갑니다.</span>
       <button type="button" class="ranking-login-btn">로그인</button>
     </div>`;
 }

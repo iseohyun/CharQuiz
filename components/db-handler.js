@@ -900,3 +900,54 @@ export const getComboHistory = async (range = 'week') => {
     value: Math.max(0, ...Object.entries(daily).filter(([d]) => d.startsWith(key)).map(([, v]) => v))
   }));
 };
+
+/**
+ * 이 기기에서 게스트로 쌓은 콤보 기록을 로그인한 계정에 합친다. 역대 최대와 날마다 최대는 큰 쪽을 남긴다.
+ * 이어지는 콤보(current)는 계정 쪽을 그대로 둔다.
+ * @returns {Promise<boolean>} 합친 것이 있으면 true
+ */
+export const mergeGuestCombo = async () => {
+  const guestId = getStoredGuestId();
+  if (!guestId || !currentUserUid || currentUserUid === guestId) return false;
+  let guest;
+  try {
+    guest = JSON.parse(localStorage.getItem(`CHARQUIZ_COMBO_${guestId}`) || 'null');
+  } catch {
+    guest = null;
+  }
+  if (!guest || !(guest.best > 0)) return false;
+
+  const account = await loadComboState();
+  const local = readLocalCombo();
+  local.daily = local.daily || {};
+  const raisedDays = [];
+  Object.entries(guest.daily || {}).forEach(([day, value]) => {
+    if (value > (local.daily[day] || 0)) {
+      local.daily[day] = value;
+      raisedDays.push([day, value]);
+    }
+  });
+  const bestFromGuest = guest.best > (account.best || 0);
+  if (!bestFromGuest && raisedDays.length === 0) return false;
+  const state = {
+    current: account.current || 0,
+    best: bestFromGuest ? guest.best : account.best || 0,
+    bestAt: bestFromGuest ? guest.bestAt : account.bestAt || null
+  };
+  Object.assign(local, state, { updatedAt: Date.now() });
+  writeLocalCombo(local);
+
+  try {
+    await setDoc(doc(db, 'users', currentUserUid), { charquizCombo: { ...state, updatedAt: Date.now() } }, { merge: true });
+    await Promise.all(raisedDays.map(async ([day, value]) => {
+      const ref = doc(db, 'users', currentUserUid, 'study_stats', day);
+      const snap = await getDoc(ref);
+      if (value > (snap.exists() ? Number(snap.data().charquizMaxCombo) || 0 : 0)) {
+        await setDoc(ref, { charquizMaxCombo: value, lastUpdated: Date.now() }, { merge: true });
+      }
+    }));
+  } catch (err) {
+    console.warn('[GuestMerge] 콤보 기록 서버 저장 생략(로컬 반영):', err.message);
+  }
+  return true;
+};
