@@ -2632,3 +2632,30 @@ textarea,
   line-height: 1.45;
   border-bottom: 1px solid #f1f5f9;
 }
+
+/* 결과 창: 게스트에게 로그인 안내 */
+.ranking-login-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fdf2f8;
+  border: 1px solid #fbcfe8;
+  font-size: 0.8rem;
+  color: #831843;
+  line-height: 1.45;
+}
+
+.ranking-login-btn {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: #ec4899;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}

@@ -804,7 +804,7 @@ async function terminateQuizSession() {
     const accuracy = sessionHistory.length > 0 ? Math.round((correctCount / sessionHistory.length) * 100) : 0;
     const { recordDomain, playerName } = resolveRankingMetadata();
 
-    await submitStudyRanking(recordDomain, correctCount, playedTime, accuracy, playerName);
+    if (canSubmitRanking()) await submitStudyRanking(recordDomain, correctCount, playedTime, accuracy, playerName);
     console.log(`[Quiz] 학습 세션 정상 마감 완료 - 정답수: ${correctCount}, 시간: ${formatTime(playedTime)}, 정답률: ${accuracy}%`);
   } catch (dbError) {
     console.warn("[LocalFirst] 학습모드 완료 백엔드 등록 안내 (로컬 저장 완료):", dbError.message || dbError);
@@ -875,7 +875,32 @@ function showStudySummary() {
       </tr></tfoot>
     </table>
     <p class="study-summary-note">응답속도는 최근 기록 평균입니다. 강급후보는 이번에 틀렸거나 전보다 느려진 글자입니다.</p>
+    ${rankingLoginNoteHtml()}
   `);
+  bindRankingLoginNote();
+}
+
+/** 순위에는 로그인한 사용자만 올린다. 게스트도 학습·기록 모드는 그대로 할 수 있다. */
+function canSubmitRanking() {
+  return Boolean(auth.currentUser);
+}
+
+/** 게스트에게 결과 창 아래에 보이는 「로그인하면 순위에 올라가요」 안내 */
+function rankingLoginNoteHtml() {
+  if (canSubmitRanking()) return '';
+  return `
+    <div class="ranking-login-note">
+      <span>게스트 기록은 리더보드에 올라가지 않아요. 로그인하면 다음 기록부터 순위에 올라갑니다.</span>
+      <button type="button" class="ranking-login-btn">로그인</button>
+    </div>`;
+}
+
+function bindRankingLoginNote() {
+  document.querySelector('.info-overlay .ranking-login-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelector('.info-overlay')?.remove();
+    window.popupLogin();
+  });
 }
 
 /**
@@ -1067,13 +1092,15 @@ async function terminateTimeAttackSession() {
       <strong>${taCorrectCount}</strong><span>개 맞힘</span>
     </div>
     <p class="study-summary-note">푼 문제 ${taSolvedCount}개 · 정답률 ${accuracy}%${finishedInTime ? '' : ' · 중간에 그만둔 기록은 순위에 올리지 않습니다.'}</p>
+    ${finishedInTime ? rankingLoginNoteHtml() : ''}
   `);
+  bindRankingLoginNote();
 
   try {
     const itemsToSave = currentPool.filter(item => item.isUnlocked && item.touched);
     if (itemsToSave.length > 0) await savePoolByDomain(itemsToSave);
     await updateDailyStudyTime(playedSec, userConfig.currentDomain);
-    if (finishedInTime && taSolvedCount > 0) {
+    if (finishedInTime && taSolvedCount > 0 && canSubmitRanking()) {
       const { recordDomain, playerName } = resolveRankingMetadata();
       await submitTimeAttackRanking(recordDomain, taCorrectCount, taSolvedCount, accuracy, playerName);
     }
@@ -1200,6 +1227,19 @@ async function terminateSpeedrunSession() {
 
   resetToMainModeSelection();
 
+  const finishedAll = srCurrentIndex >= srTotalCount;
+  const srAccuracy = srTotalCount > 0 ? Math.round((srCorrectCount / srTotalCount) * 100) : 0;
+  if (finishedAll) {
+    showInfoOverlay(t('mode.record20'), `
+      <div class="timeattack-result">
+        <strong>${formatTime(srElapsedTime).replace(/^00:/, '')}</strong>
+      </div>
+      <p class="study-summary-note">${srTotalCount}문제 · 맞힘 ${srCorrectCount}개 · 정답률 ${srAccuracy}%</p>
+      ${rankingLoginNoteHtml()}
+    `);
+    bindRankingLoginNote();
+  }
+
   try {
     // 20문제 안에서 나온 글자만 진도를 고친다
     const itemsToSave = currentPool.slice(0, srTotalCount).filter(item => item.isUnlocked);
@@ -1214,7 +1254,7 @@ async function terminateSpeedrunSession() {
     const { recordDomain, playerName } = resolveRankingMetadata();
 
     // 20문제를 다 풀었을 때만 순위에 올린다(중간에 그만두면 올리지 않음)
-    if (srCurrentIndex >= srTotalCount) {
+    if (finishedAll && canSubmitRanking()) {
       await submitSpeedrunRanking(recordDomain, srTotalCount, srElapsedTime, accuracy, playerName);
     }
     console.log(`[Speedrun] 기록 모드 완료 - 소요 시간: ${formatTime(srElapsedTime)}, 정답률: ${accuracy}%`);

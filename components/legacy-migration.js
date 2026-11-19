@@ -12,6 +12,9 @@ import { db, auth } from './firebase-config.js';
 import { deleteDoc, doc, getDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js";
 
 const BATCH_LIMIT = 450;
+// 지금 앱이 쓰고 규칙이 허락하는 하위 컬렉션만 옮긴다. 예전 CharQuiz 의 sessions 같은 것을 함께 쓰면
+// 규칙에 막혀 묶음 전체가 실패하고 아무것도 옮겨지지 않는다.
+const ALLOWED_SUBS = ['study_stats', 'daily_summary'];
 
 /**
  * 로그인한 사용자에게 옮겨 둔 이전 기록이 있으면 자기 기록으로 옮긴다. 없거나 실패하면 조용히 넘어간다.
@@ -41,7 +44,7 @@ export async function claimLegacyData() {
       writes.push([doc(db, 'users', uid, 'progress', domain, 'chars', charId), data]);
     }
   }
-  for (const [sub, docs] of Object.entries(subs)) {
+  for (const [sub, docs] of Object.entries(subs).filter(([name]) => ALLOWED_SUBS.includes(name))) {
     for (const [docId, data] of Object.entries(docs || {})) {
       writes.push([doc(db, 'users', uid, sub, docId), data, { merge: true }]);
     }
