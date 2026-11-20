@@ -861,3 +861,37 @@ export const mergeGuestCombo = async () => {
   }
   return true;
 };
+
+/* ==========================================================================
+   학습 정답률 기록 (목표 정답률 자동 진도, components/adaptive-progress.js)
+   계정 문서(users/{uid})의 `charquizStudyAccuracy` 필드에 { log: [0|1...], updatedAt } 로 둔다.
+   설정(config)은 기기에 저장본이 있으면 서버를 읽지 않으므로, 기기끼리 맞추려고 따로 둔다.
+   ========================================================================== */
+const STUDY_ACCURACY_FIELD = 'charquizStudyAccuracy';
+
+/** 지금 기록 주인(계정 uid 또는 게스트 ID) */
+export const getCurrentUserKey = () => currentUserUid;
+
+const isSignedInOwner = () => Boolean(currentUserUid && auth.currentUser && auth.currentUser.uid === currentUserUid);
+
+/** 계정에 저장된 정답률 기록을 읽는다(게스트·실패면 null) */
+export const loadAccountStudyAccuracy = async () => {
+  if (!isSignedInOwner()) return null;
+  try {
+    const snap = await getDoc(doc(db, 'users', currentUserUid));
+    return snap.exists() ? (snap.data()[STUDY_ACCURACY_FIELD] || null) : null;
+  } catch (e) {
+    console.warn('[LocalFirst] 정답률 기록 불러오기 실패:', e.message);
+    return null;
+  }
+};
+
+/** 정답률 기록을 계정에 올린다(게스트면 하지 않음) */
+export const saveAccountStudyAccuracy = async (state) => {
+  if (!isSignedInOwner() || !state || !Array.isArray(state.log)) return;
+  try {
+    await setDoc(doc(db, 'users', currentUserUid), { [STUDY_ACCURACY_FIELD]: { log: state.log, updatedAt: state.updatedAt || Date.now() } }, { merge: true });
+  } catch (e) {
+    console.warn('[LocalFirst] 정답률 기록 저장 실패:', e.message);
+  }
+};

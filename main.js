@@ -89,8 +89,12 @@ import {
   normalizeTargetAccuracy,
   planNewItems,
   recordStudyAnswer,
-  getRecentStudyAccuracy
+  getRecentStudyAccuracy,
+  getAccuracyState,
+  setAccuracyOwner,
+  mergeAccountAccuracy
 } from './components/adaptive-progress.js';
+import { getCurrentUserKey, loadAccountStudyAccuracy, saveAccountStudyAccuracy } from './components/db-handler.js';
 import { renderSisterAppsHtml, hydrateSisterApps } from './components/sister-apps.js';
 import {
   initAuthObserver,
@@ -277,6 +281,9 @@ async function initApp() {
     }
 
     // 로그인 사용자와 게스트 모두 저장된 설정을 불러온다 (기존에는 게스트 설정이 새로고침마다 초기화됨)
+    // 목표 정답률 자동 진도: 정답률 기록을 이 사람 것으로 바꾸고 계정 기록과 맞춘다
+    await syncStudyAccuracy();
+
     applySavedConfig(await getUserConfig());
     comboState = await loadComboState();
     setLanguage(userConfig.uiLanguage);
@@ -790,6 +797,8 @@ function resolveRankingMetadata() {
  * 세션이 정상 타임아웃 종료되었을 때 성적 요약 및 최종 알림 예약 프로세스 마감
  */
 async function terminateQuizSession() {
+  // 이번 학습 판의 정답률 기록을 계정에 올린다(게스트는 기기에만, 기다리지 않음)
+  saveAccountStudyAccuracy(getAccuracyState());
   if (timerInterval) {
     clearInterval(timerInterval);
     timerInterval = null;
@@ -2721,4 +2730,14 @@ function recentAccuracyHintText() {
   const { accuracy, count } = getRecentStudyAccuracy();
   if (accuracy === null) return t('setting.recentAccuracyNone');
   return t('setting.recentAccuracy').replace('{n}', String(count)).replace('{acc}', String(accuracy));
+}
+
+/**
+ * 정답률 기록(목표 정답률 자동 진도)을 지금 사람 것으로 바꾸고, 로그인했으면 계정 기록과 맞춘다.
+ * 더 최근 쪽을 쓰고, 이 기기 기록이 더 새로우면 계정에 올린다.
+ */
+async function syncStudyAccuracy() {
+  setAccuracyOwner(getCurrentUserKey());
+  const remote = await loadAccountStudyAccuracy();
+  if (mergeAccountAccuracy(remote) === 'push') await saveAccountStudyAccuracy(getAccuracyState());
 }
