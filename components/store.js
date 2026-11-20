@@ -7,6 +7,7 @@ export const userConfig = {
   learningTime: 60,
   MAX_POOL_SIZE: 10,
   autoProgress: true,
+  targetAccuracy: 85, // 목표 정답률(%): 최근 학습 정답률이 이보다 높으면 새 문제를 더 넣는다 (components/adaptive-progress.js)
   reviewReminder: true, // 복습 알림 예약 여부 (설정 화면에서 끄고 켠다)
   speechRate: 0.85,
   currentDomain: 'hira',

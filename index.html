@@ -22,7 +22,7 @@
     try { document.documentElement.dataset.accent = localStorage.getItem("CHARQUIZ_ACCENT") || "pink"; } catch (e) { /* 무시 */ }
     // 이 앱이 따르는 QuizApp Common GUI 판 (iseohyun.com 의 column/ai/quizapp-common-gui). 도움말 맨 아래에 보여 준다
     window.QUIZAPP_GUI_VERSION = "v0.2.0";
-    window.CACHE_BUST = "20261120v2";
+    window.CACHE_BUST = "20261121v1";
 
     const cssLink = document.createElement("link");
     cssLink.rel = "stylesheet";
@@ -34,6 +34,7 @@
     // ⚠️ components/ 에 모듈을 추가하면 아래 목록에도 추가할 것 (.agents/rules/project_architecture.md 참고)
     (function registerVersionedImportMap() {
       const componentModules = [
+        "adaptive-progress",
         "app-config", "audio-manager", "auth-handler", "combo-fx", "date-utils", "db-handler", "engine",
         "firebase-config", "hint-handler", "hint-seeds", "i18n", "install-prompt", "keybind-manager", "legacy-migration", "letter-stage", "new-dot", "notification-handler", "notification-inbox", "season-weather", "sister-apps", "storage-migration",
         "store", "ui-modal-handler", "update-checker"

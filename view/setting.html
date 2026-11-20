@@ -55,6 +55,14 @@
     <label class="setting-label" for="auto-progress" data-i18n="setting.autoProgress">자동 진도</label>
     <input type="checkbox" id="auto-progress" class="setting-check" {{#if autoProgress}}checked{{/if}}>
   </div>
+  <div class="setting-row">
+    <label class="setting-label" for="target-accuracy-slider" data-i18n="setting.targetAccuracy">목표 정답률</label>
+    <span class="setting-value setting-range">
+      <input type="range" id="target-accuracy-slider" min="0" max="5" step="1" value="{{targetAccuracyIdx}}">
+      <span class="setting-range-val"><span id="target-accuracy-display">{{targetAccuracy}}</span>%</span>
+    </span>
+  </div>
+  <p class="setting-hint" id="target-accuracy-hint">{{recentAccuracy}}</p>
 </details>
 
 <details class="setting-group" open>

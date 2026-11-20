@@ -47,7 +47,42 @@ export function isDueForReview(item, now = Date.now()) {
 }
 
 /**
+ * 자동 진도 계획을 { newCount, force } 로 맞춘다. true/false(예전 방식)는 새 문항 1개/0개.
+ * (계획은 components/adaptive-progress.js 의 planNewItems 가 최근 정답률로 정한다)
+ */
+function normalizeProgressPlan(autoProgress) {
+  if (autoProgress && typeof autoProgress === 'object') {
+    return { newCount: Math.max(0, Number(autoProgress.newCount) || 0), force: Boolean(autoProgress.force) };
+  }
+  return { newCount: autoProgress ? 1 : 0, force: false };
+}
+
+/**
+ * [3단계] 새 문항을 넣는다. force 면 풀이 차 있어도 자리를 비운다:
+ * 복습 때가 안 된 조기 보충 문항부터 빼고, 그래도 모자라면 뒤쪽 복습 문항을 다음 판으로 미룬다.
+ */
+function addNewItems(pool, processedData, plan, maxSize) {
+  if (plan.newCount <= 0) return pool;
+  const fresh = processedData.filter((item) => !item.hasHistory && !pool.some((p) => p.charId === item.charId));
+  const take = plan.force ? plan.newCount : Math.min(plan.newCount, maxSize - pool.length);
+  const picked = fresh.slice(0, Math.max(0, Math.min(take, maxSize)));
+  if (picked.length === 0) return pool;
+  let next = [...pool];
+  let overflow = next.length + picked.length - maxSize;
+  for (let i = next.length - 1; i >= 0 && overflow > 0; i--) {
+    if (!next[i].isEligibleForPromotion) {
+      next.splice(i, 1);
+      overflow--;
+    }
+  }
+  if (overflow > 0) next = next.slice(0, next.length - overflow);
+  picked.forEach((item) => { item.isForcedNew = plan.force; });
+  return next.concat(picked);
+}
+
+/**
  * 세션 진입 시 단어 풀 구성 함수
+ * autoProgress: true/false 또는 { newCount, force } (adaptive-progress.js 의 planNewItems)
  */
 export function initSessionPool(domain, dbData = {}, autoProgress = true, MAX_POOL_SIZE = 10) {
   const now = Date.now();
@@ -107,13 +142,8 @@ export function initSessionPool(domain, dbData = {}, autoProgress = true, MAX_PO
     pool = pool.concat(insufficientCandidates.slice(0, remain));
   }
 
-  // [3단계] 자동진도 옵션 신규 단어 진입
-  if (pool.length < MAX_POOL_SIZE && autoProgress) {
-    const freshNewCandidates = processedData.filter(item => !item.hasHistory);
-    if (freshNewCandidates.length > 0) {
-      pool.push(freshNewCandidates[0]);
-    }
-  }
+  // [3단계] 자동진도: 신규 문항 진입 (최근 정답률이 높으면 풀이 차 있어도 넣는다)
+  pool = addNewItems(pool, processedData, normalizeProgressPlan(autoProgress), MAX_POOL_SIZE);
 
   // [4단계] 잔여 슬롯 방어선 구축
   if (pool.length < MIN_REQUIRED_FOR_OPTIONS) {

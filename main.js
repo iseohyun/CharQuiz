@@ -83,6 +83,14 @@ import { openHintListModal, renderHintHallOfFame } from './components/hint-handl
 import { SEASONS, SEASON_META, WEATHER_META, getSeasonByDate, getApproxWeather } from './components/season-weather.js';
 import { startLetterStage } from './components/letter-stage.js';
 import { getTrailingStreak, showCombo } from './components/combo-fx.js';
+import {
+  TARGET_ACCURACY_STEPS,
+  DEFAULT_TARGET_ACCURACY,
+  normalizeTargetAccuracy,
+  planNewItems,
+  recordStudyAnswer,
+  getRecentStudyAccuracy
+} from './components/adaptive-progress.js';
 import { renderSisterAppsHtml, hydrateSisterApps } from './components/sister-apps.js';
 import {
   initAuthObserver,
@@ -593,10 +601,12 @@ async function startQuizSession() {
   const group = getDomainGroup(userConfig.currentDomain);
   const domains = getActiveDomains();
   const perDomainSize = Math.max(4, Math.ceil(userConfig.MAX_POOL_SIZE / domains.length));
+  // 자동 진도: 최근 학습 정답률을 목표 정답률과 견줘 새 문제 수를 정한다 (components/adaptive-progress.js)
+  const progressPlan = planNewItems(userConfig.autoProgress, userConfig.targetAccuracy);
   currentPool = [];
   for (const domain of domains) {
     const dbData = await getAllProgress(domain);
-    const pool = initSessionPool(domain, dbData, userConfig.autoProgress, perDomainSize);
+    const pool = initSessionPool(domain, dbData, progressPlan, perDomainSize);
     currentPool.push(...pool.map((item) => tagPoolItem(item, domain, group.domains.indexOf(domain))));
   }
   // 꺼 둔 같은 언어 범위라도 복습할 때가 된 글자는 함께 낸다(새 글자는 켜 둔 범위에서만)
@@ -610,7 +620,7 @@ async function startQuizSession() {
   if (currentPool.length > poolLimit) {
     currentPool = currentPool
       .sort(() => Math.random() - 0.5)
-      .sort((a, b) => Number(b.isEligibleForPromotion) - Number(a.isEligibleForPromotion))
+      .sort((a, b) => Number(Boolean(b.isEligibleForPromotion || b.isForcedNew)) - Number(Boolean(a.isEligibleForPromotion || a.isForcedNew)))
       .slice(0, poolLimit);
   }
 
@@ -707,6 +717,7 @@ async function handleUserAnswer(selectedCharId, latency) {
 
   const target = currentQuestion.target;
   const isCorrect = selectedCharId === target.charId;
+  recordStudyAnswer(isCorrect, latency); // 목표 정답률에 맞춘 자동 진도용 (늦은 정답은 오답)
 
   const updatedItem = calculateReviewState({ ...target }, isCorrect, latency);
   const poolIdx = currentPool.findIndex(p => p.charId === target.charId);
@@ -1980,6 +1991,9 @@ async function openRemoteModalPopup(viewName, options = {}) {
         .replace('{{speechIdx}}', speechIdx)
         .replace('{{speechRate}}', userConfig.speechRate)
         .replace('{{#if autoProgress}}checked{{/if}}', userConfig.autoProgress ? 'checked' : '')
+        .replace('{{targetAccuracyIdx}}', String(TARGET_ACCURACY_STEPS.indexOf(normalizeTargetAccuracy(userConfig.targetAccuracy))))
+        .replace('{{targetAccuracy}}', String(normalizeTargetAccuracy(userConfig.targetAccuracy)))
+        .replace('{{recentAccuracy}}', () => recentAccuracyHintText())
         .replace('{{#if weatherTheme}}checked{{/if}}', userConfig.weatherTheme !== false ? 'checked' : '')
         .replace('{{languageOptions}}', () => UI_LANGUAGES.map((lang) => `<option value="${lang.code}">${lang.label}</option>`).join(''))
         .replace('{{keybindingsConfig}}', () => kbHtml);
@@ -2289,6 +2303,12 @@ async function openRemoteModalPopup(viewName, options = {}) {
 
       document.getElementById('auto-progress')?.addEventListener('change', (e) => {
         userConfig.autoProgress = e.target.checked;
+      });
+
+      document.getElementById('target-accuracy-slider')?.addEventListener('input', (e) => {
+        userConfig.targetAccuracy = TARGET_ACCURACY_STEPS[parseInt(e.target.value, 10)] ?? DEFAULT_TARGET_ACCURACY;
+        const display = document.getElementById('target-accuracy-display');
+        if (display) display.textContent = String(userConfig.targetAccuracy);
       });
 
       document.getElementById('weather-theme')?.addEventListener('change', (e) => {
@@ -2695,3 +2715,10 @@ registerGlobalKeybindings(userConfig, {
     }
   }
 });
+
+/** 설정 화면 「목표 정답률」 아래 안내: 최근 학습 정답률 */
+function recentAccuracyHintText() {
+  const { accuracy, count } = getRecentStudyAccuracy();
+  if (accuracy === null) return t('setting.recentAccuracyNone');
+  return t('setting.recentAccuracy').replace('{n}', String(count)).replace('{acc}', String(accuracy));
+}
