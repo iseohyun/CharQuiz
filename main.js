@@ -921,6 +921,19 @@ function rankingLoginNoteHtml() {
     </div>`;
 }
 
+/** 타임어택 결과 창의 「결과 공유하기」 단추 (로그인 여부와 상관없이 보인다) */
+function shareResultButtonHtml() {
+  return '<div class="share-result-row"><button type="button" class="share-result-btn">📤 결과 공유하기</button></div>';
+}
+
+/** 결과 창의 공유 단추를 누르면 결과 문구로 공유 서랍(카톡·문자 등)을 연다 */
+function bindShareResultButton(resultText) {
+  document.querySelector('.info-overlay .share-result-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    shareApp(resultText);
+  });
+}
+
 function bindRankingLoginNote() {
   document.querySelector('.info-overlay .ranking-login-btn')?.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1119,9 +1132,11 @@ async function terminateTimeAttackSession() {
       <strong>${taCorrectCount}</strong><span>개 맞힘</span>
     </div>
     <p class="study-summary-note">푼 문제 ${taSolvedCount}개 · 정답률 ${accuracy}%${finishedInTime ? '' : ' · 중간에 그만둔 기록은 순위에 올리지 않습니다.'}</p>
+    ${finishedInTime ? shareResultButtonHtml() : ''}
     ${finishedInTime ? rankingLoginNoteHtml() : ''}
   `);
   bindRankingLoginNote();
+  if (finishedInTime) bindShareResultButton(`CharQuiz 30초 타임어택 ${taCorrectCount}개 맞힘! 정답률 ${accuracy}% (${taCorrectCount}/${taSolvedCount}) 나도 도전해 봐!`);
 
   try {
     const itemsToSave = currentPool.filter(item => item.isUnlocked && item.touched);
@@ -1262,9 +1277,11 @@ async function terminateSpeedrunSession() {
         <strong>${formatTime(srElapsedTime).replace(/^00:/, '')}</strong>
       </div>
       <p class="study-summary-note">${srTotalCount}문제 · 맞힘 ${srCorrectCount}개 · 정답률 ${srAccuracy}%</p>
+      ${shareResultButtonHtml()}
       ${rankingLoginNoteHtml()}
     `);
     bindRankingLoginNote();
+    bindShareResultButton(`CharQuiz 20문제 타임어택 ${srElapsedTime >= 60 ? `${Math.floor(srElapsedTime / 60)}분 ` : ''}${srElapsedTime % 60}초 완주! 정답률 ${srAccuracy}% (${srCorrectCount}/${srTotalCount}) 나도 도전해 봐!`);
   }
 
   try {
@@ -2318,9 +2335,10 @@ function localizeSettingOptions(root) {
 
 /**
  * 휴대폰의 공유하기 서랍을 연다(카톡·문자 등). 서랍이 없는 브라우저는 주소를 복사한다.
+ * resultText 를 주면 타임어택 결과 문구를 함께 보낸다(복사할 때도 문구 + 주소).
  */
-async function shareApp() {
-  const shareData = { title: 'CharQuiz', text: t('share.text'), url: APP_BASE_URL };
+async function shareApp(resultText = null) {
+  const shareData = { title: 'CharQuiz', text: resultText || t('share.text'), url: APP_BASE_URL };
   if (navigator.share) {
     try {
       await navigator.share(shareData);
@@ -2331,7 +2349,7 @@ async function shareApp() {
     }
   }
   try {
-    await navigator.clipboard.writeText(APP_BASE_URL);
+    await navigator.clipboard.writeText(resultText ? `${resultText}\n${APP_BASE_URL}` : APP_BASE_URL);
     alert(t('share.copied'));
   } catch (error) {
     console.error('[Share] 주소 복사 실패:', error);

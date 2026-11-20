@@ -2660,6 +2660,30 @@ textarea,
   cursor: pointer;
 }
 
+/* 타임어택 결과 창의 「결과 공유하기」 단추 (카톡·문자 등 공유 서랍) */
+.share-result-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.share-result-btn {
+  border: 1px solid var(--accent-border);
+  border-radius: 999px;
+  padding: 8px 18px;
+  background: var(--accent-soft);
+  color: var(--accent-deep);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.share-result-btn:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
 /* 「앱 설치」 단추 (components/install-prompt.js) */
 .install-app-btn[hidden] {
   display: none !important;
